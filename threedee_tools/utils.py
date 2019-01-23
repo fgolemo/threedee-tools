@@ -1,3 +1,5 @@
+import itertools
+
 import numpy as np
 
 
@@ -12,8 +14,7 @@ class Vec3D(object):
 
     def __eq__(self, other):
         # return self.x == other.x and self.y == other.y and self.z == other.z
-        return np.linalg.norm(self.arr() - other.arr()) < 0.001 # because small imprecisions in point calc
-
+        return np.linalg.norm(self.arr() - other.arr()) < 0.001  # because small imprecisions in point calc
 
     def __hash__(self):
         return hash((self.x, self.y, self.z))
@@ -37,9 +38,14 @@ class Face(object):
         self.right = right
 
 
+def grouper(iterable, n, padvalue=None):
+  "grouper(3, 'abcdefg', 'x') --> ('a','b','c'), ('d','e','f'), ('g','x','x')"
+  return itertools.zip_longest(*[iter(iterable)] * n, fillvalue=padvalue)
+
 class Vertices(object):
     def __init__(self):
         self.v = []
+        self.n = []
         # self.
 
     def copy(self):
@@ -55,6 +61,23 @@ class Vertices(object):
 
     def z(self):
         return [p.z for p in self.v]
+
+    def nx(self):
+        return [p.x for p in self.n]
+
+    def ny(self):
+        return [p.y for p in self.n]
+
+    def nz(self):
+        return [p.z for p in self.n]
+
+    def calculate_normals(self):
+        for a, b, c in grouper(self.v, 3):
+            x = np.mean([a.x, b.x, c.x])
+            y = np.mean([a.y, b.y, c.y])
+            z = np.mean([a.z, b.z, c.z])
+            for _ in range(3):
+                self.n.append(Vec3D(x, y, z))
 
     def getQuad(self, a, b, c, d):
         out = []
@@ -168,20 +191,23 @@ def get_scale_for_vert(verts, scales, search):
         if verts[i] == search:
             return scales[i]
 
+
 def scale_vertices(faces, verts, scales, iiis=None):
     cnt = 0
     for f in faces:
         for v in f.v:
-            if iiis is None: # very slow
+            if iiis is None:  # very slow
                 v.scale(get_scale_for_vert(verts, scales, v))
-            else: # better
+            else:  # better
                 v.scale(scales[iiis[cnt]])
                 cnt += 1
+
 
 def get_scale_for_vert_dry(verts, search):
     for i in range(len(verts)):
         if verts[i] == search:
             return i
+
 
 def scale_vertices_dry(faces, verts):
     iiis = []

@@ -78,7 +78,7 @@ lookat = Matrix44.look_at(
 prog['Mvp'].write((proj * lookat).astype('f4').tobytes())
 
 
-runs = 100
+runs = 1000
 timer_copy = []
 timer_scaling = []
 timer_buffering = []
