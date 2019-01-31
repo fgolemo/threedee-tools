@@ -181,6 +181,8 @@ def sphere_vertices(faces, subdiv_count):
 
 
 def cube_vertices(length=1., width=1., height=1.):
+    # from https://wiki.unity3d.com/index.php/ProceduralPrimitives#C.23_-_Box
+
     cube_verts = []
 
     p0 = Vec3D(-length * .5, -width * .5, height * .5)

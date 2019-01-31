@@ -58,7 +58,7 @@ print (prog._members.items())
 
 random_scaling = np.random.uniform(0, 1, 160)
 random_scaling[random_scaling < 0.7] = 0.7
-# random_scaling[random_scaling > 0.7] = 0.7
+# random_scaling[random_scaling < 0.7] = 0.7
 
 verts, faces = sphere_vertices(CUBE_FACE, 5)
 
