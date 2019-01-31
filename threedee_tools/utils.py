@@ -3,6 +3,8 @@ import itertools
 import numpy as np
 
 
+# [0.9, 1.0, 0.9, 1.0, 0.8, 1.0, 1.0, 1.0, 1.0, 0.7, 1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 0.7, 0.8, 1.0, 0.7, 0.7, 1.0, 0.9, 1.0, 1.0, 0.9, 0.7, 0.9, 0.8, 1.0, 0.8, 1.0, 0.8, 1.0, 1.0, 0.8, 1.0, 1.0, 0.8, 1.0, 0.9, 1.0, 0.9, 1.0, 0.9, 1.0, 1.0, 1.0, 1.0, 0.7, 0.7, 0.8, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 1.0, 0.8, 1.0, 1.0, 0.9, 1.0, 0.7, 1.0, 0.8, 1.0, 0.9, 0.9, 1.0, 0.9, 0.7, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.7, 1.0, 0.9, 1.0, 0.7, 1.0, 0.7, 1.0, 1.0, 0.9, 0.9, 1.0, 1.0, 0.9, 1.0, 1.0, 1.0, 1.0, 0.8, 0.8, 1.0, 1.0, 1.0, 0.8, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 0.7, 0.7, 1.0, 0.7, 0.9, 0.9, 1.0, 1.0, 0.9, 1.0, 0.9, 1.0, 0.9, 1.0, 0.7, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 1.0]
+
 class Vec3D(object):
     def __init__(self, x, y, z):
         self.x = float(x)
@@ -51,7 +53,7 @@ class Vertices(object):
 
     def copy(self):
         v = Vertices()
-        v.v = self.v[:]
+        v.v = [v2.copy() for v2 in self.v]
         return v
 
     def x(self):
@@ -275,12 +277,12 @@ def get_cone_vertices(height=1., bottom_radius=.10, top_radius=.10, nb_sides=18)
     vertices.append(vertices[nb_sides * 2 + 2])
     vertices.append(vertices[nb_sides * 2 + 3])
 
-    #TODO: finish this:
+    # TODO: finish this:
 
-    #TODO: add faces
-    #TODO: split up model into colored face / use texture
-    #TODO: verify vertex count
-    #TODO: return vertices
+    # TODO: add faces
+    # TODO: split up model into colored face / use texture
+    # TODO: verify vertex count
+    # TODO: return vertices
 
 
 def get_unique_vertices(verts):
@@ -297,7 +299,7 @@ def get_scale_for_vert(verts, scales, search):
             return scales[i]
 
 
-def scale_vertices(faces, verts, scales, iiis=None):
+def scale_vertices(faces, scales, verts=None, iiis=None):
     cnt = 0
     for f in faces:
         for v in f.v:
