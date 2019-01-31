@@ -39,8 +39,9 @@ class Face(object):
 
 
 def grouper(iterable, n, padvalue=None):
-  "grouper(3, 'abcdefg', 'x') --> ('a','b','c'), ('d','e','f'), ('g','x','x')"
-  return itertools.zip_longest(*[iter(iterable)] * n, fillvalue=padvalue)
+    "grouper(3, 'abcdefg', 'x') --> ('a','b','c'), ('d','e','f'), ('g','x','x')"
+    return itertools.zip_longest(*[iter(iterable)] * n, fillvalue=padvalue)
+
 
 class Vertices(object):
     def __init__(self):
@@ -72,12 +73,13 @@ class Vertices(object):
         return [p.z for p in self.n]
 
     def calculate_normals(self):
-        for a, b, c in grouper(self.v, 3):
-            x = np.mean([a.x, b.x, c.x])
-            y = np.mean([a.y, b.y, c.y])
-            z = np.mean([a.z, b.z, c.z])
-            for _ in range(3):
-                self.n.append(Vec3D(x, y, z))
+        if len(self.n) == 0:
+            for a, b, c in grouper(self.v, 3):
+                x = np.mean([a.x, b.x, c.x])
+                y = np.mean([a.y, b.y, c.y])
+                z = np.mean([a.z, b.z, c.z])
+                for _ in range(3):
+                    self.n.append(Vec3D(x, y, z))
 
     def getQuad(self, a, b, c, d):
         out = []
@@ -176,6 +178,107 @@ def sphere_vertices(faces, subdiv_count):
         sphere_face_vertices.append(vertices)
 
     return sphere_vertices, sphere_face_vertices
+
+
+def cube_vertices(length=1., width=1., height=1.):
+    cube_verts = []
+
+    p0 = Vec3D(-length * .5, -width * .5, height * .5)
+    p1 = Vec3D(length * .5, -width * .5, height * .5)
+    p2 = Vec3D(length * .5, -width * .5, -height * .5)
+    p3 = Vec3D(-length * .5, -width * .5, -height * .5)
+
+    p4 = Vec3D(-length * .5, width * .5, height * .5)
+    p5 = Vec3D(length * .5, width * .5, height * .5)
+    p6 = Vec3D(length * .5, width * .5, -height * .5)
+    p7 = Vec3D(-length * .5, width * .5, -height * .5)
+
+    # bottom
+    vertices = Vertices()
+    vertices.v = [p0, p1, p2, p3]
+    cube_verts.append(vertices)
+
+    # left
+    vertices = Vertices()
+    vertices.v = [p7, p4, p0, p3]
+    cube_verts.append(vertices)
+
+    # front
+    vertices = Vertices()
+    vertices.v = [p4, p5, p1, p0]
+    cube_verts.append(vertices)
+
+    # back
+    vertices = Vertices()
+    vertices.v = [p6, p7, p3, p2]
+    cube_verts.append(vertices)
+
+    # right
+    vertices = Vertices()
+    vertices.v = [p5, p6, p2, p1]
+    cube_verts.append(vertices)
+
+    # top
+    vertices = Vertices()
+    vertices.v = [p7, p6, p5, p4]
+    cube_verts.append(vertices)
+
+    ### Faces
+    cube_vert_faces = []
+
+    for i in range(6):
+        vertices = Vertices()
+        vertices.v = cube_verts[i].getQuad(0, 1, 2, 3)
+        if i == 0:
+            vertices.n = [Vec3D(0, -1, 0)] * 6
+        if i == 1:
+            vertices.n = [Vec3D(-1, 0, 0)] * 6
+        if i == 2:
+            vertices.n = [Vec3D(0, 0, 1)] * 6
+        if i == 3:
+            vertices.n = [Vec3D(0, 0, -1)] * 6
+        if i == 4:
+            vertices.n = [Vec3D(1, 0, 0)] * 6
+        if i == 5:
+            vertices.n = [Vec3D(0, 1, 0)] * 6
+        cube_vert_faces.append(vertices)
+
+    return cube_verts, cube_vert_faces
+
+
+def get_cone_vertices(height=1., bottom_radius=.10, top_radius=.10, nb_sides=18):
+    nb_vertices_cap = nb_sides + 1
+    # // bottom + top + sides
+
+    vertices = []
+
+    # // Bottom cap
+    vertices.append(Vec3D(0, 0, 0))
+    for i in range(nb_sides + 1):
+        rad = i / nb_sides * 2 * np.pi
+        vertices.append(Vec3D(np.cos(rad) * bottom_radius, 0, np.sin(rad) * bottom_radius))
+
+    # // Top cap
+    vertices.append(Vec3D(0, height, 0))
+    for i in range(nb_sides + 1):
+        rad = i / nb_sides * 2 * np.pi
+        vertices.append(Vec3D(np.cos(rad) * bottom_radius, height, np.sin(rad) * bottom_radius))
+
+    v_len = len(vertices) - 3
+    for i in range(v_len):
+        rad = i / nb_sides * 2 * np.pi
+        vertices.append(Vec3D(np.cos(rad) * top_radius, height, np.sin(rad) * top_radius))
+        vertices.append(Vec3D(np.cos(rad) * bottom_radius, 0, np.sin(rad) * bottom_radius))
+
+    vertices.append(vertices[nb_sides * 2 + 2])
+    vertices.append(vertices[nb_sides * 2 + 3])
+
+    #TODO: finish this:
+
+    #TODO: add faces
+    #TODO: split up model into colored face / use texture
+    #TODO: verify vertex count
+    #TODO: return vertices
 
 
 def get_unique_vertices(verts):

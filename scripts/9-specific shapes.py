@@ -1,6 +1,7 @@
 import moderngl
 import numpy as np
-from threedee_tools.utils import sphere_vertices, CUBE_FACE, FACE_COLORS, get_unique_vertices, scale_vertices
+from threedee_tools.utils import sphere_vertices, CUBE_FACE, FACE_COLORS, get_unique_vertices, scale_vertices, \
+    cube_vertices
 from PIL import Image
 from pyrr import Matrix44
 
@@ -14,17 +15,14 @@ prog = ctx.program(
 
         in vec3 in_vert;
         in vec3 in_norm;
-        //in vec2 in_text;
 
         out vec3 v_vert;
         out vec3 v_norm;
-        //out vec2 v_text;
 
         void main() {
             gl_Position = Mvp * vec4(in_vert, 1.0);
             v_vert = in_vert;
             v_norm = in_norm;
-            //v_text = in_text;
         }
     ''',
     fragment_shader='''
@@ -32,12 +30,9 @@ prog = ctx.program(
 
         uniform vec3 Lights;
         uniform vec3 Color;
-        //uniform bool UseTexture;
-        //uniform sampler2D Texture;
 
         in vec3 v_vert;
         in vec3 v_norm;
-        //in vec2 v_text;
 
         out vec4 f_color;
 
@@ -49,22 +44,19 @@ prog = ctx.program(
                 ),
                 0.0, 
                 1.0) * 0.6 + 0.4;
-            f_color = vec4(Color * lum, 1.0);
+            f_color = vec4(Color * lum, 1.);
         }
     ''',
 )
 prog['Lights'].value = (100, 100, 100)
-print (prog._members.items())
+print(prog._members.items())
 
-random_scaling = np.random.uniform(0, 1, 160)
-random_scaling[random_scaling < 0.7] = 0.7
-# random_scaling[random_scaling > 0.7] = 0.7
+# random_scaling = np.random.uniform(0, 1, 160)
+sphere = np.ones((160)) * 0.7
+cube = np.ones((160))
+cube[-40:] = .7
 
-verts, faces = sphere_vertices(CUBE_FACE, 5)
-
-unique_verts = get_unique_vertices(verts)
-
-scale_vertices(faces, unique_verts, random_scaling)
+verts, faces = cube_vertices()
 
 vertex_buffers = []
 for face in faces:
@@ -90,16 +82,16 @@ lookat = Matrix44.look_at(
 
 import matplotlib.pyplot as plt
 
-f, axarr = plt.subplots(1, 7, sharex=True, sharey=True, figsize=(20, 5))
+f, axarr = plt.subplots(1, 13, sharex=True, sharey=True, figsize=(20, 2))
 
-base_light = np.array((10,10,10))
+base_light = np.array((100, 100, 100))
 
-for rot in np.arange(0, 3.1, 0.5):
+for rot in np.arange(0, 6.1, 0.5):
     fbo.clear(0.0, 0.0, 0.0, 0.0)
     rotate = np.array(Matrix44.from_z_rotation(rot))
 
     # this keep the light in place
-    prog['Lights'].value = tuple(np.matmul(rotate[:3,:3],base_light).reshape(1, -1)[0])
+    prog['Lights'].value = tuple(np.matmul(rotate[:3, :3], base_light).reshape(1, -1)[0])
     # prog['Lights'].value = (10, 10, 10)
 
     prog['Mvp'].write((proj * lookat * rotate).astype('f4').tobytes())
