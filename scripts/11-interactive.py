@@ -7,14 +7,16 @@ import PIL
 from PIL import ImageTk, Image
 from pyrr import Matrix44
 
+from threedee_tools.renderer import Renderer
 from threedee_tools.shaders import VERTEX_SHADER_NORMAL, FARGMENT_SHADER_LIGHT_COLOR
-from threedee_tools.utils import sphere_vertices, CUBE_FACE, get_unique_vertices, scale_vertices, FACE_COLORS, \
+from threedee_tools.utils_3d import sphere_vertices, CUBE_FACE, get_unique_vertices, scale_vertices, FACE_COLORS, \
     scale_vertices_dry
 
 master = Tk()
 
 image = None
 photo = None
+
 
 # [0.9, 1.0, 0.9, 1.0, 0.8, 1.0, 1.0, 1.0, 1.0, 0.7, 1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 0.7, 0.8, 1.0, 0.7, 0.7, 1.0, 0.9, 1.0, 1.0, 0.9, 0.7, 0.9, 0.8, 1.0, 0.8, 1.0, 0.8, 1.0, 1.0, 0.8, 1.0, 1.0, 0.8, 1.0, 0.9, 1.0, 0.9, 1.0, 0.9, 1.0, 1.0, 1.0, 1.0, 0.7, 0.7, 0.8, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 1.0, 0.8, 1.0, 1.0, 0.9, 1.0, 0.7, 1.0, 0.8, 1.0, 0.9, 0.9, 1.0, 0.9, 0.7, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.7, 1.0, 0.9, 1.0, 0.7, 1.0, 0.7, 1.0, 1.0, 0.9, 0.9, 1.0, 1.0, 0.9, 1.0, 1.0, 1.0, 1.0, 0.8, 0.8, 1.0, 1.0, 1.0, 0.8, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 0.7, 0.7, 1.0, 0.7, 0.9, 0.9, 1.0, 1.0, 0.9, 1.0, 0.9, 1.0, 0.9, 1.0, 0.7, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 1.0]
 
@@ -62,22 +64,7 @@ class ShapeConfig():
         width = 512
         height = 512
 
-        self.ctx = moderngl.create_standalone_context()
-        self.prog = self.ctx.program(vertex_shader=VERTEX_SHADER_NORMAL, fragment_shader=FARGMENT_SHADER_LIGHT_COLOR)
-
-        self.verts_base, self.faces_base = sphere_vertices(CUBE_FACE, 5)
-
-        self.unique_verts = get_unique_vertices(self.verts_base)
-        self.iiis = scale_vertices_dry(self.faces_base, self.unique_verts)
-
-        self.ctx.enable(moderngl.DEPTH_TEST)
-        self.fbo = self.ctx.simple_framebuffer((width, height))
-        self.fbo.use()
-
-        self.proj = Matrix44.perspective_projection(45.0, width / height, 0.1, 1000.0)
-
-        # light position (will stay in place, independent of object/cam rotation)
-        self.base_light = np.array((10, 10, -10))
+        self.renderer = Renderer(width, height)
 
         self.image = Image.fromarray(np.zeros((width, height), dtype=np.uint8))
 
@@ -106,7 +93,7 @@ class ShapeConfig():
 
     def set_values(self, vs):
         if len(vs) != 160:
-            print("ERROR: length of inputs should be 160, found:", len(x))
+            print("ERROR: length of inputs should be 160, found:", len(vs))
             return
 
         for i in range(160):
@@ -132,38 +119,11 @@ class ShapeConfig():
         print(self.rotation_speed)
 
     def render(self):
-        faces = [f.copy() for f in self.faces_base]
-        scale_vertices(faces, self.get_values(), iiis=self.iiis)
-
-        vertex_buffers = []
-        for face in faces:
-            face.calculate_normals()
-            verts = np.dstack([face.x(), face.y(), face.z(), face.nx(), face.ny(), face.nz()])
-            vbo = self.ctx.buffer(verts.astype('f4').tobytes())
-            vao = self.ctx.simple_vertex_array(self.prog, vbo, 'in_vert', 'in_norm')
-            vertex_buffers.append(vao)
-
-        self.fbo.clear(0.0, 0.0, 0.0, 0.0)
-
-        lookat = Matrix44.look_at(
-            (2, 2, self.cam_z),  # eye / camera position
-            (0.0, 0.0, 0.0),  # lookat
-            (0.0, 0.0, 1.0),  # camera up vector
-        )
-
-        rotate = np.array(Matrix44.from_z_rotation(self.rot))
-        self.prog['Lights'].value = tuple(np.matmul(rotate[:3, :3], self.base_light).reshape(1, -1)[0])
-        self.prog['Mvp'].write((self.proj * lookat * rotate).astype('f4').tobytes())
-
-        for vb, color in zip(vertex_buffers, FACE_COLORS):
-            self.prog['Color'].value = color
-            vb.render(moderngl.TRIANGLES)
-
-        self.image = Image.frombytes('RGB', self.fbo.size, self.fbo.read(), 'raw', 'RGB', 0, -1)
+        self.image = self.renderer.render(self.get_values(), np.array((0, self.rot, 0)))
         self.photo = ImageTk.PhotoImage(self.image)
         self.canvas.itemconfig(self.photo_holder, image=self.photo)
 
-        self.rot += 0.1 * np.sign(self.rotation_speed)
+        self.rot += 0.1 * np.sign(self.rotation_speed) / (2 * np.pi)
 
         if self.rotation_speed != 0:
             master.after(25 * (6 - abs(self.rotation_speed)), self.render)

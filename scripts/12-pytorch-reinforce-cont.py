@@ -14,7 +14,6 @@ from threedee_tools.utils_rl import NormalizedActions
 
 ENV_NAME = "MountainCarContinuous-v0"
 GAMMA = 0.99 # discount factor
-EXPLORATION_END = 100 # number of episodes with noise
 SEED = 123
 NUM_STEPS = 999 # episode steps
 NUM_EPISODES = 2000

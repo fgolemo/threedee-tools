@@ -1,6 +1,8 @@
+import math
+
 import moderngl
 import numpy as np
-from threedee_tools.utils import sphere_vertices, CUBE_FACE, FACE_COLORS, get_unique_vertices, scale_vertices
+from threedee_tools.utils_3d import sphere_vertices, CUBE_FACE, FACE_COLORS, get_unique_vertices, scale_vertices
 from PIL import Image
 from pyrr import Matrix44
 
@@ -54,7 +56,7 @@ prog = ctx.program(
     ''',
 )
 prog['Lights'].value = (100, 100, 100)
-print (prog._members.items())
+print(prog._members.items())
 
 random_scaling = np.random.uniform(0, 1, 160)
 random_scaling[random_scaling < 0.7] = 0.7
@@ -64,7 +66,7 @@ verts, faces = sphere_vertices(CUBE_FACE, 5)
 
 unique_verts = get_unique_vertices(verts)
 
-scale_vertices(faces, unique_verts, random_scaling)
+scale_vertices(faces, random_scaling, verts=unique_verts)
 
 vertex_buffers = []
 for face in faces:
@@ -92,14 +94,14 @@ import matplotlib.pyplot as plt
 
 f, axarr = plt.subplots(1, 7, sharex=True, sharey=True, figsize=(20, 5))
 
-base_light = np.array((10,10,10))
+base_light = np.array((10, 10, 10))
 
 for rot in np.arange(0, 3.1, 0.5):
     fbo.clear(0.0, 0.0, 0.0, 0.0)
-    rotate = np.array(Matrix44.from_z_rotation(rot))
+    rotate = np.array(Matrix44.from_eulers((0, rot, 0)))
 
     # this keep the light in place
-    prog['Lights'].value = tuple(np.matmul(rotate[:3,:3],base_light).reshape(1, -1)[0])
+    prog['Lights'].value = tuple(np.matmul(rotate[:3, :3], base_light).reshape(1, -1)[0])
     # prog['Lights'].value = (10, 10, 10)
 
     prog['Mvp'].write((proj * lookat * rotate).astype('f4').tobytes())

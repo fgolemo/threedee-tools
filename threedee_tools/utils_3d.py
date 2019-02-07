@@ -2,6 +2,7 @@ import itertools
 
 import numpy as np
 
+
 class Vec3D(object):
     def __init__(self, x, y, z):
         self.x = float(x)
