@@ -16,6 +16,7 @@ master = Tk()
 image = None
 photo = None
 
+# [0.9, 1.0, 0.9, 1.0, 0.8, 1.0, 1.0, 1.0, 1.0, 0.7, 1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 0.7, 0.8, 1.0, 0.7, 0.7, 1.0, 0.9, 1.0, 1.0, 0.9, 0.7, 0.9, 0.8, 1.0, 0.8, 1.0, 0.8, 1.0, 1.0, 0.8, 1.0, 1.0, 0.8, 1.0, 0.9, 1.0, 0.9, 1.0, 0.9, 1.0, 1.0, 1.0, 1.0, 0.7, 0.7, 0.8, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 1.0, 0.8, 1.0, 1.0, 0.9, 1.0, 0.7, 1.0, 0.8, 1.0, 0.9, 0.9, 1.0, 0.9, 0.7, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.7, 1.0, 0.9, 1.0, 0.7, 1.0, 0.7, 1.0, 1.0, 0.9, 0.9, 1.0, 1.0, 0.9, 1.0, 1.0, 1.0, 1.0, 0.8, 0.8, 1.0, 1.0, 1.0, 0.8, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 0.7, 0.7, 1.0, 0.7, 0.9, 0.9, 1.0, 1.0, 0.9, 1.0, 0.9, 1.0, 0.9, 1.0, 0.7, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 1.0]
 
 class popupWindow(object):
     def __init__(self, root):
@@ -35,7 +36,7 @@ class popupWindow(object):
 class ShapeConfig():
     def __init__(self):
         self.rotation_speed = 1  # higher is faster, positive is right
-        self.cam_z = 1
+        self.cam_z = -2
 
         self.values = []
         for x in range(6):
@@ -64,8 +65,6 @@ class ShapeConfig():
         self.ctx = moderngl.create_standalone_context()
         self.prog = self.ctx.program(vertex_shader=VERTEX_SHADER_NORMAL, fragment_shader=FARGMENT_SHADER_LIGHT_COLOR)
 
-        self.prog['Lights'].value = (100, 100, 100)
-
         self.verts_base, self.faces_base = sphere_vertices(CUBE_FACE, 5)
 
         self.unique_verts = get_unique_vertices(self.verts_base)
@@ -76,7 +75,9 @@ class ShapeConfig():
         self.fbo.use()
 
         self.proj = Matrix44.perspective_projection(45.0, width / height, 0.1, 1000.0)
-        self.base_light = np.array((10, 10, 10))
+
+        # light position (will stay in place, independent of object/cam rotation)
+        self.base_light = np.array((10, 10, -10))
 
         self.image = Image.fromarray(np.zeros((width, height), dtype=np.uint8))
 
@@ -122,7 +123,6 @@ class ShapeConfig():
             self.rotation_speed += 1
         if self.rotation_speed == 1:
             self.render()
-        print(self.rotation_speed)
 
     def left(self):
         if self.rotation_speed > -5:
