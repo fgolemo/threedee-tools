@@ -1,6 +1,6 @@
 import moderngl
 import numpy as np
-from threedee_tools.utils import sphere_vertices, CUBE_FACE, FACE_COLORS, get_unique_vertices, scale_vertices, \
+from threedee_tools.utils_3d import sphere_vertices, CUBE_FACE, FACE_COLORS, get_unique_vertices, scale_vertices, \
     cube_vertices
 from PIL import Image
 from pyrr import Matrix44

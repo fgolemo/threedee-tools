@@ -52,6 +52,7 @@ class Vertices(object):
     def copy(self):
         v = Vertices()
         v.v = [v2.copy() for v2 in self.v]
+        v.n = [n2.copy() for n2 in self.n]
         return v
 
     def x(self):

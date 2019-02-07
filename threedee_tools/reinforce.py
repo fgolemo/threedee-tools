@@ -16,8 +16,9 @@ def normal(x, mu, sigma_sq):
 
 
 class REINFORCE:
-    def __init__(self, hidden_size, num_inputs, action_space, policy):
+    def __init__(self, hidden_size, num_inputs, action_space, policy, steps=100):
         self.action_space = action_space
+        self.steps = steps
         self.model = policy(hidden_size, num_inputs, action_space)
         # self.model = self.model.cuda()
         self.model = self.model
@@ -40,7 +41,7 @@ class REINFORCE:
         return action, log_prob, entropy
 
     def update_parameters(self, rewards, log_probs, entropies, gamma):
-        R = torch.zeros(1, 1)
+        R = torch.zeros(self.action_space)
         loss = 0
         for i in reversed(range(len(rewards))):
             R = gamma * R + rewards[i]
@@ -51,5 +52,5 @@ class REINFORCE:
 
         self.optimizer.zero_grad()
         loss.backward()
-        utils.clip_grad_norm(self.model.parameters(), 40)
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 40)
         self.optimizer.step()

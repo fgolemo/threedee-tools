@@ -63,7 +63,6 @@ for i_episode in range(NUM_EPISODES):
     for t in range(NUM_STEPS):
         action, log_prob, entropy = agent.select_action(state)
         action = action.cpu()
-        print (action)
 
         next_state, reward, done, _ = env.step(action.numpy()[0])
 

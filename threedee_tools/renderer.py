@@ -4,22 +4,30 @@ from pyrr import Matrix44
 import numpy as np
 from threedee_tools.shaders import VERTEX_SHADER_NORMAL, FARGMENT_SHADER_LIGHT_COLOR
 from threedee_tools.utils_3d import sphere_vertices, CUBE_FACE, get_unique_vertices, \
-    scale_vertices_dry, scale_vertices, FACE_COLORS
+    scale_vertices_dry, scale_vertices, FACE_COLORS, cube_vertices
 
 
 class Renderer(object):
 
-    def __init__(self, width, height):
+    def __init__(self, width, height, shape="sphere", scaled=True):
         # this will be the main thing that the neural network changes
         self.vertex_values = np.ones(160, dtype=np.float32)  # in range [0,1]
         self.rotation_values = np.zeros(3, dtype=np.float32)  # in range [0,1] corresponding to 0 deg to 360 deg
+
+        self.shape = shape
+        self.scaled = scaled
 
         self.ctx = moderngl.create_standalone_context()
         self.prog = self.ctx.program(
             vertex_shader=VERTEX_SHADER_NORMAL,
             fragment_shader=FARGMENT_SHADER_LIGHT_COLOR)
 
-        self.verts_base, self.faces_base = sphere_vertices(CUBE_FACE, 5)
+        if shape == "sphere":
+            self.verts_base, self.faces_base = sphere_vertices(CUBE_FACE, 5)
+        elif shape == "cube":
+            self.verts_base, self.faces_base = cube_vertices()
+        else:
+            assert NotImplementedError("Shape not implemented: '{}'".format(shape))
 
         self.unique_verts = get_unique_vertices(self.verts_base)
         self.iiis = scale_vertices_dry(self.faces_base, self.unique_verts)
@@ -41,7 +49,9 @@ class Renderer(object):
         vertex_values, rotation_values = self.sanitize(vertex_values, rotation_values)
 
         faces = [f.copy() for f in self.faces_base]
-        scale_vertices(faces, vertex_values, iiis=self.iiis)
+
+        if self.scaled:
+            scale_vertices(faces, vertex_values, iiis=self.iiis)
 
         vertex_buffers = []
         for face in faces:
