@@ -7,6 +7,7 @@ setup(name='threedee_tools',
           "tqdm",
           "matplotlib",
           "moderngl>=5.5.0",
-          "numpy"
+          "numpy",
+          "pyrr"
       ]
       )

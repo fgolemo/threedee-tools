@@ -1,16 +1,10 @@
 import ast
 from tkinter import *
 
-import moderngl
 import numpy as np
-import PIL
 from PIL import ImageTk, Image
-from pyrr import Matrix44
 
 from threedee_tools.renderer import Renderer
-from threedee_tools.shaders import VERTEX_SHADER_NORMAL, FARGMENT_SHADER_LIGHT_COLOR
-from threedee_tools.utils_3d import sphere_vertices, CUBE_FACE, get_unique_vertices, scale_vertices, FACE_COLORS, \
-    scale_vertices_dry
 
 master = Tk()
 
