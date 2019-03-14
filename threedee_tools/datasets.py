@@ -20,6 +20,15 @@ class RandomSingleViewGenerator(object):
     def sample(self):
         return self.renderer.render(np.random.uniform(self.min, self.max, 160), self.cam)
 
+class ConstantShapeGenerator(object):
+    def __init__(self, width, height):
+        self.renderer = Renderer(width, height, "sphere", True)
+        self.cam = np.random.uniform(-1, 1, 3)
+
+    def sample(self):
+        shape = np.ones(160) * .5
+        return self.renderer.render(shape, self.cam)
+
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
