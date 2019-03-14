@@ -20,7 +20,8 @@ class REINFORCE:
         self.action_space = action_space
         self.steps = steps
         self.model = policy(hidden_size, num_inputs, action_space)
-        # self.model = self.model.cuda()
+        if torch.cuda.is_available():
+            self.model = self.model.cuda()
         self.optimizer = optim.Adam(self.model.parameters(), lr=1e-3)
         self.model.train()
 

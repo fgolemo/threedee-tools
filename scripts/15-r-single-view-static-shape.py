@@ -65,6 +65,8 @@ for i_episode in range(NUM_EPISODES):
     env_state = np.ones(160, dtype=np.float32) * .5
     env_rot = np.zeros(3, dtype=np.float32)
     state = torch.Tensor([npa(target)]).view(-1)
+    if torch.cuda.is_available():
+        state = state.cuda()
     entropies = []
     log_probs = []
     rewards = []
