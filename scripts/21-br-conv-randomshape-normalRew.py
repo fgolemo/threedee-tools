@@ -77,7 +77,7 @@ np.random.seed(SEED)
 policy = Policy(LATENT_SIZE, 160).to(device)
 
 optimizer = torch.optim.Adam(policy.parameters())
-eps = torch.from_numpy(npa([np.finfo(np.float32).eps.item()])).to(device)
+eps = torch.from_numpy(npa([np.finfo(np.float32).eps.item()])).float().to(device)
 
 if not os.path.exists(exp_dir):
     os.mkdir(exp_dir)
