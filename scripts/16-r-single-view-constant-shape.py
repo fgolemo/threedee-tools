@@ -103,3 +103,8 @@ for i_episode in range(NUM_EPISODES):
     # print("Episode: {}, reward: {}".format(i_episode, np.sum(rewards)))
     exp.metric("episode", i_episode)
     exp.metric("rewards", np.mean(reward_raw_log))
+
+    del rewards
+    del log_probs
+    del entropies
+    del state

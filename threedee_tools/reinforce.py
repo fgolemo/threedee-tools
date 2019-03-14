@@ -59,3 +59,5 @@ class REINFORCE:
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), 40)
         self.optimizer.step()
+        del loss
+
