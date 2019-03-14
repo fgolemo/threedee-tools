@@ -32,6 +32,8 @@ class REINFORCE:
 
         # eps = torch.randn(mu.size()).cuda()
         eps = torch.randn(mu.size())
+        if torch.cuda.is_available():
+            eps = eps.cuda()
         # calculate the probability
         action = (mu + sigma_sq.sqrt() * eps).data
         prob = normal(action, mu, sigma_sq)
@@ -47,7 +49,10 @@ class REINFORCE:
             R = gamma * R + rewards[i]
             # loss = loss - (log_probs[i] * (R.expand_as(log_probs[i])).cuda()).sum() - (
             #         0.0001 * entropies[i].cuda()).sum()
-            loss = loss - (log_probs[i] * (R.expand_as(log_probs[i]))).sum() - (0.0001 * entropies[i]).sum()
+            R_exp = R.expand_as(log_probs[i])
+            if torch.cuda.is_available():
+                R_exp = R_exp.cuda()
+            loss = loss - (log_probs[i] * R_exp).sum() - (0.0001 * entropies[i]).sum()
         loss = loss / len(rewards)
 
         self.optimizer.zero_grad()

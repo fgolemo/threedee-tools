@@ -70,6 +70,8 @@ for i_episode in range(NUM_EPISODES):
     entropies = []
     log_probs = []
     rewards = []
+    reward_raw_log = [] # just for logging purposes
+
     for t in range(NUM_STEPS):
         action, log_prob, entropy = agent.select_action(state)
         action = action.cpu()
@@ -77,6 +79,7 @@ for i_episode in range(NUM_EPISODES):
         next_state = env.render(action, data_generator.cam)
 
         reward_raw = -np.linalg.norm(npa(target) - npa(next_state)).sum()
+        reward_raw_log.append(reward_raw)
 
         if len(reward_avg) == 0:
             reward = reward_raw
@@ -99,4 +102,4 @@ for i_episode in range(NUM_EPISODES):
 
     # print("Episode: {}, reward: {}".format(i_episode, np.sum(rewards)))
     exp.metric("episode", i_episode)
-    exp.metric("rewards", np.mean(rewards))
+    exp.metric("rewards", np.mean(reward_raw_log))
