@@ -9,7 +9,7 @@ from threedee_tools.utils_3d import sphere_vertices, CUBE_FACE, get_unique_verti
 
 class Renderer(object):
 
-    def __init__(self, width, height, shape="sphere", scaled=True):
+    def __init__(self, width, height, shape="sphere", scaled=True, sphere_subdiv=5):
         # this will be the main thing that the neural network changes
         self.vertex_values = np.ones(160, dtype=np.float32)  # in range [0,1]
         self.rotation_values = np.zeros(3, dtype=np.float32)  # in range [0,1] corresponding to 0 deg to 360 deg
@@ -23,7 +23,7 @@ class Renderer(object):
             fragment_shader=FARGMENT_SHADER_LIGHT_COLOR)
 
         if shape == "sphere":
-            self.verts_base, self.faces_base = sphere_vertices(CUBE_FACE, 5)
+            self.verts_base, self.faces_base = sphere_vertices(CUBE_FACE, sphere_subdiv)
         elif shape == "cube":
             self.verts_base, self.faces_base = cube_vertices()
         else:
