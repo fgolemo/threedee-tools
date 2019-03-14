@@ -24,7 +24,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 from hyperdash import Experiment
 
-exp_name = "3DR-19-newReinforce-constant-shape-conv"
+exp_name = "3DR-21-nr-conv-randomshape-normRew"
 exp_dir = exp_name + "-" + strftime("%Y%m%d%H%M%S")
 
 exp = Experiment(exp_name)
@@ -77,7 +77,7 @@ np.random.seed(SEED)
 policy = Policy(LATENT_SIZE, 160).to(device)
 
 optimizer = torch.optim.Adam(policy.parameters())
-eps = torch.from_numpy(np.finfo(np.float32).eps.item()).to(device)
+eps = torch.from_numpy([np.finfo(np.float32).eps.item()]).to(device)
 
 if not os.path.exists(exp_dir):
     os.mkdir(exp_dir)

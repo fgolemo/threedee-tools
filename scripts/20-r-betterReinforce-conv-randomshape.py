@@ -24,7 +24,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 from hyperdash import Experiment
 
-exp_name = "3DR-19-newReinforce-constant-shape-conv"
+exp_name = "3DR-20-nr-conv-randomshape"
 exp_dir = exp_name + "-" + strftime("%Y%m%d%H%M%S")
 
 exp = Experiment(exp_name)
