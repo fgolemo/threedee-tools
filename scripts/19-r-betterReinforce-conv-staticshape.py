@@ -4,7 +4,6 @@ from time import strftime
 import numpy as np
 
 import torch.nn as nn
-import torch.nn.functional as F
 import torch
 from torch.distributions import Normal
 
@@ -20,6 +19,8 @@ WIDTH = 64
 HEIGHT = 64
 
 npa = np.array
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 from hyperdash import Experiment
 
@@ -73,7 +74,7 @@ data_generator = ConstantShapeGenerator(WIDTH, HEIGHT)
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
-policy = Policy(LATENT_SIZE, 160)
+policy = Policy(LATENT_SIZE, 160).to(device)
 
 optimizer = torch.optim.Adam(policy.parameters())
 eps = np.finfo(np.float32).eps.item()
@@ -87,9 +88,7 @@ for i_episode in range(NUM_EPISODES):
     # sample image
     state_raw = data_generator.sample()
 
-    state = torch.Tensor([np.swapaxes(npa(state_raw), 0, 2)])
-    if torch.cuda.is_available():
-        state = state.cuda()
+    state = torch.Tensor([np.swapaxes(npa(state_raw), 0, 2)]).to(device)
 
     # encode to latent variables (mu/var)
     latent_mu, latent_stddev = policy.encode(state)
@@ -126,10 +125,8 @@ for i_episode in range(NUM_EPISODES):
     KLD = -0.5 * torch.sum(1 + torch.log(latent_stddev.pow(2)) - latent_mu.pow(2) - latent_stddev.pow(2))
 
     # update model
-    returns = torch.Tensor(rewards)
+    returns = torch.Tensor(rewards).to(device)
     # returns = (returns - returns.mean()) / (returns.std() + eps)
-    if torch.cuda.is_available():
-        returns = returns.cuda()
 
     policy_loss = []
     for log_prob, R in zip(log_probs, returns):
