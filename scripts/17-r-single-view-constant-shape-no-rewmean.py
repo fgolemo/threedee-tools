@@ -23,7 +23,7 @@ npa = np.array
 
 from hyperdash import Experiment
 
-exp = Experiment("3DR-16-constant-shape")
+exp = Experiment("3DR-17-constant-shape")
 
 
 class Policy(nn.Module):
@@ -54,7 +54,7 @@ np.random.seed(SEED)
 
 agent = REINFORCE(HIDDEN_SIZE, WIDTH * HEIGHT * 3, 160, Policy)
 
-dir = 'ckpt_3dreinforcev3'
+dir = 'ckpt_3dreinforcev4'
 if not os.path.exists(dir):
     os.mkdir(dir)
 
