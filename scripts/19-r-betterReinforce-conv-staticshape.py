@@ -108,7 +108,7 @@ for i_episode in range(NUM_EPISODES):
 
         # render out an image for each of the K samples
         # IMPORTANT THIS CURRENTLY ASSUMES BATCH SIZE = 1
-        next_state = env.render(params.detach().view(-1).numpy(), data_generator.cam)
+        next_state = env.render(params.detach().view(-1).cpu().numpy(), data_generator.cam)
 
         # calculate reward for each one of the K samples
         reward_raw = -(np.square(npa(state_raw) - npa(next_state))).mean(axis=None)
