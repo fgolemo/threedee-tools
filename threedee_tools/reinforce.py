@@ -21,7 +21,6 @@ class REINFORCE:
         self.steps = steps
         self.model = policy(hidden_size, num_inputs, action_space)
         # self.model = self.model.cuda()
-        self.model = self.model
         self.optimizer = optim.Adam(self.model.parameters(), lr=1e-3)
         self.model.train()
 

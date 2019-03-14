@@ -2,7 +2,7 @@ import math
 
 
 # apt-get install xvfb
-# alias xpy='xvfb-run -s "-screen 0 1x1x24" python3'
+# alias xpy='xvfb-run -s "-screen 0 1x1x24" python'
 # xpy -m ModernGL
 
 
@@ -116,5 +116,3 @@ for idx, rot in enumerate(np.arange(0, 3.1, 0.5)):
 
     # plt.subplot(171 + (rot * 2))
     img.save('test-{}.png'.format(idx))
-
-Ò
