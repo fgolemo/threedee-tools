@@ -134,7 +134,7 @@ for i_episode in range(NUM_EPISODES):
 
     optimizer.zero_grad()
     policy_loss_sum = torch.cat(policy_loss).sum() + KLD
-    loss_copy = policy_loss_sum.detach().numpy().copy()
+    loss_copy = policy_loss_sum.detach().cpu().numpy().copy()
     policy_loss_sum.backward()
     optimizer.step()
 
