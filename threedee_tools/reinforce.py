@@ -4,7 +4,8 @@ import torch.optim as optim
 import torch.nn.utils as utils
 import torch.nn.functional as F
 import torch
-
+from torch.distributions import Normal
+import numpy as np
 pi = torch.FloatTensor([math.pi])
 if torch.cuda.is_available():
     pi = pi.cuda()
@@ -60,4 +61,5 @@ class REINFORCE:
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), 40)
         self.optimizer.step()
         del loss
+
 
