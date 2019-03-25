@@ -7,7 +7,8 @@ import torch.nn as nn
 import torch
 from torch.distributions import Normal
 
-from threedee_tools.datasets import CubeGenerator, RandomSingleViewGenerator, ConstantShapeGenerator
+from threedee_tools.datasets import CubeGenerator, RandomSingleViewGenerator, ConstantShapeGenerator, \
+    CubeSingleViewGenerator
 from threedee_tools.renderer import Renderer
 
 SEED = 123
@@ -17,8 +18,8 @@ LATENT_SIZE = 10
 CHKP_FREQ = 2  # model saving freq
 WIDTH = 64
 HEIGHT = 64
-VAR_EPS = 0.0  # epislon variance to be added to normal sampling
-LR = 1e-3  # learning rate
+VAR_EPS = .5  # epislon variance to be added to normal sampling
+LR = 1e-4  # learning rate
 
 npa = np.array
 
@@ -26,7 +27,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 from hyperdash import Experiment
 
-exp_name = "3DR-20-nr-conv-randomshape"
+exp_name = "3DR-23-nr-conv-cube-newnormal"
 exp_dir = exp_name + "-" + strftime("%Y%m%d%H%M%S")
 
 exp = Experiment(exp_name)
@@ -75,7 +76,7 @@ class Policy(nn.Module):
 
 env = Renderer(WIDTH, HEIGHT)
 
-data_generator = RandomSingleViewGenerator(WIDTH, HEIGHT, smin=.5)
+data_generator = CubeSingleViewGenerator(WIDTH, HEIGHT)
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)
@@ -98,17 +99,18 @@ for i_episode in range(NUM_EPISODES):
 
     # encode to latent variables (mu/var)
     latent_mu, latent_stddev = policy.encode(state)
+    m = Normal(latent_mu, latent_stddev)
 
     rewards = []
     rewards_raw = []
     log_probs = []
+    entropies = []
 
     for k in range(SAMPLES):
         # sample K times
-        eps_var = np.random.rand() * VAR_EPS
-        m = Normal(latent_mu, latent_stddev + eps_var)
         action = m.sample()
         log_probs.append(m.log_prob(action))
+        entropies.append(m.entropy())
 
         params = policy.decode(action)
 
@@ -130,15 +132,17 @@ for i_episode in range(NUM_EPISODES):
     KLD = -0.5 * torch.sum(1 + torch.log(latent_stddev.pow(2)) - latent_mu.pow(2) - latent_stddev.pow(2))
 
     # update model
-    returns = torch.Tensor(rewards).to(device)
+    returns = torch.FloatTensor(rewards).to(device)
     # returns = (returns - returns.mean()) / (returns.std() + eps)
 
     policy_loss = []
-    for log_prob, R in zip(log_probs, returns):
-        policy_loss.append(-log_prob * R)
+    for log_prob, R, ent in zip(log_probs, returns, entropies):
+        policy_loss.append(-log_prob * R - (0.0001 * ent))
 
     optimizer.zero_grad()
-    policy_loss_sum = torch.cat(policy_loss).sum() + KLD
+
+    policy_loss_sum = torch.cat(policy_loss).sum() / len(policy_loss) + KLD
+    # policy_loss_sum = torch.cat(policy_loss).sum() / len(policy_loss)
     loss_copy = policy_loss_sum.detach().cpu().numpy().copy()
     policy_loss_sum.backward()
     optimizer.step()

@@ -4,7 +4,7 @@ from pyrr import Matrix44
 import numpy as np
 from threedee_tools.shaders import VERTEX_SHADER_NORMAL, FARGMENT_SHADER_LIGHT_COLOR
 from threedee_tools.utils_3d import sphere_vertices, CUBE_FACE, get_unique_vertices, \
-    scale_vertices_dry, scale_vertices, FACE_COLORS, cube_vertices
+    scale_vertices_dry, scale_vertices, cube_vertices, FACE_COLORS_CUBE, FACE_COLORS_SPHERE
 
 
 class Renderer(object):
@@ -24,8 +24,10 @@ class Renderer(object):
 
         if shape == "sphere":
             self.verts_base, self.faces_base = sphere_vertices(CUBE_FACE, sphere_subdiv)
+            self.colors = FACE_COLORS_SPHERE
         elif shape == "cube":
             self.verts_base, self.faces_base = cube_vertices()
+            self.colors = FACE_COLORS_CUBE
         else:
             assert NotImplementedError("Shape not implemented: '{}'".format(shape))
 
@@ -73,7 +75,7 @@ class Renderer(object):
         self.prog['Lights'].value = tuple(np.matmul(rotate[:3, :3], self.base_light).reshape(1, -1)[0])
         self.prog['Mvp'].write((self.proj * lookat * rotate).astype('f4').tobytes())
 
-        for vb, color in zip(vertex_buffers, FACE_COLORS):
+        for vb, color in zip(vertex_buffers, self.colors):
             self.prog['Color'].value = color
             vb.render(moderngl.TRIANGLES)
 

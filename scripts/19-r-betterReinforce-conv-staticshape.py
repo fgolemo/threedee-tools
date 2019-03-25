@@ -7,16 +7,18 @@ import torch.nn as nn
 import torch
 from torch.distributions import Normal
 
-from threedee_tools.datasets import CubeGenerator, RandomSingleViewGenerator, ConstantShapeGenerator
+from threedee_tools.datasets import ConstantShapeGenerator
 from threedee_tools.renderer import Renderer
 
 SEED = 123
 SAMPLES = 100
 NUM_EPISODES = 1000
 LATENT_SIZE = 10
-CHKP_FREQ = 100  # model saving freq
+CHKP_FREQ = 2  # model saving freq
 WIDTH = 64
 HEIGHT = 64
+VAR_EPS = 0.0  # epislon variance to be added to normal sampling
+LR = 1e-3  # learning rate
 
 npa = np.array
 
@@ -28,6 +30,10 @@ exp_name = "3DR-19-newReinforce-constant-shape-conv"
 exp_dir = exp_name + "-" + strftime("%Y%m%d%H%M%S")
 
 exp = Experiment(exp_name)
+exp.param("lr", LR)
+exp.param("var_eps", VAR_EPS)
+exp.param("latent", LATENT_SIZE)
+exp.param("seed", SEED)
 
 
 class Policy(nn.Module):
@@ -76,7 +82,7 @@ np.random.seed(SEED)
 
 policy = Policy(LATENT_SIZE, 160).to(device)
 
-optimizer = torch.optim.Adam(policy.parameters())
+optimizer = torch.optim.Adam(policy.parameters(), lr=LR)
 eps = np.finfo(np.float32).eps.item()
 
 if not os.path.exists(exp_dir):
@@ -96,12 +102,13 @@ for i_episode in range(NUM_EPISODES):
     rewards = []
     rewards_raw = []
     log_probs = []
+    gt_mses = []
 
     for k in range(SAMPLES):
-
         # sample K times
-        m = Normal(latent_mu, latent_stddev)
-        action = m.rsample()
+        eps_var = np.random.rand() * VAR_EPS
+        m = Normal(latent_mu, latent_stddev + eps_var)
+        action = m.sample()
         log_probs.append(m.log_prob(action))
 
         params = policy.decode(action)
@@ -109,6 +116,8 @@ for i_episode in range(NUM_EPISODES):
         # render out an image for each of the K samples
         # IMPORTANT THIS CURRENTLY ASSUMES BATCH SIZE = 1
         next_state = env.render(params.detach().view(-1).cpu().numpy(), data_generator.cam)
+        gt_mse = (np.square(params.detach().view(-1).cpu().numpy() - np.ones(160) * .5)).mean(axis=None)
+        gt_mses.append(gt_mse)
 
         # calculate reward for each one of the K samples
         reward_raw = -(np.square(npa(state_raw) - npa(next_state))).mean(axis=None)
@@ -118,7 +127,6 @@ for i_episode in range(NUM_EPISODES):
     for k in range(SAMPLES):
         baseline = np.mean(rewards_raw[:k] + rewards_raw[k + 1:])
         rewards.append(rewards_raw[k] - baseline)
-
 
     # calculate additional VAE loss
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
@@ -134,13 +142,16 @@ for i_episode in range(NUM_EPISODES):
 
     optimizer.zero_grad()
     policy_loss_sum = torch.cat(policy_loss).sum() + KLD
+    # policy_loss_sum = torch.cat(policy_loss).sum()
     loss_copy = policy_loss_sum.detach().cpu().numpy().copy()
     policy_loss_sum.backward()
     optimizer.step()
 
     if i_episode % CHKP_FREQ == 0:
         torch.save(policy.state_dict(), os.path.join(exp_dir, 'reinforce-' + str(i_episode) + '.pkl'))
+        plt.imsave(os.path.join(exp_dir, "render-{}.png".format(i_episode)), npa(next_state))
 
     exp.metric("episode", i_episode)
     exp.metric("rewards", np.mean(rewards_raw))
     exp.metric("loss", float(loss_copy))
+    exp.metric("gt mses", np.mean(gt_mses))

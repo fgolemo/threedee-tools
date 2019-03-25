@@ -7,7 +7,8 @@ import torch.nn as nn
 import torch
 from torch.distributions import Normal
 
-from threedee_tools.datasets import CubeGenerator, RandomSingleViewGenerator, ConstantShapeGenerator
+from threedee_tools.datasets import CubeGenerator, RandomSingleViewGenerator, ConstantShapeGenerator, \
+    CubeSingleViewGenerator
 from threedee_tools.renderer import Renderer
 
 SEED = 123
@@ -17,7 +18,7 @@ LATENT_SIZE = 10
 CHKP_FREQ = 2  # model saving freq
 WIDTH = 64
 HEIGHT = 64
-VAR_EPS = 0.0  # epislon variance to be added to normal sampling
+VAR_EPS = 0.1  # epislon variance to be added to normal sampling
 LR = 1e-3  # learning rate
 
 npa = np.array
@@ -26,7 +27,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 from hyperdash import Experiment
 
-exp_name = "3DR-20-nr-conv-randomshape"
+exp_name = "3DR-21-nr-conv-cube-static"
 exp_dir = exp_name + "-" + strftime("%Y%m%d%H%M%S")
 
 exp = Experiment(exp_name)
@@ -75,7 +76,7 @@ class Policy(nn.Module):
 
 env = Renderer(WIDTH, HEIGHT)
 
-data_generator = RandomSingleViewGenerator(WIDTH, HEIGHT, smin=.5)
+data_generator = CubeSingleViewGenerator(WIDTH, HEIGHT)
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)
@@ -107,7 +108,7 @@ for i_episode in range(NUM_EPISODES):
         # sample K times
         eps_var = np.random.rand() * VAR_EPS
         m = Normal(latent_mu, latent_stddev + eps_var)
-        action = m.sample()
+        action = m.rsample()
         log_probs.append(m.log_prob(action))
 
         params = policy.decode(action)
@@ -139,6 +140,7 @@ for i_episode in range(NUM_EPISODES):
 
     optimizer.zero_grad()
     policy_loss_sum = torch.cat(policy_loss).sum() + KLD
+    # policy_loss_sum = torch.cat(policy_loss).sum()
     loss_copy = policy_loss_sum.detach().cpu().numpy().copy()
     policy_loss_sum.backward()
     optimizer.step()
