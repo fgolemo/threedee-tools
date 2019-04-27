@@ -27,6 +27,7 @@ params = {
     "VARIANCE_WEIGHT": 2
 }
 
+
 npa = np.array
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -49,41 +50,6 @@ def normal(x, mu, sigma_sq):
     return a * b
 
 
-class Policy(nn.Module):
-    def __init__(self, num_latents, num_outputs):
-        super(Policy, self).__init__()
-
-        self.relu = nn.ReLU()
-
-        # inference part
-        self.conv1 = nn.Conv2d(3, 32, (3, 3), (1, 1), (1, 1))
-        self.conv2 = nn.Conv2d(32, 64, (3, 3), (2, 2), (1, 1))
-        self.conv3 = nn.Conv2d(64, 128, (3, 3), (2, 2), (1, 1))
-
-        # inference: conv to latent
-        self.linear1_mu = nn.Linear(128 * 16 * 16, num_latents)
-        self.linear1_stddev = nn.Linear(128 * 16 * 16, num_latents)
-
-        self.linear2 = nn.Linear(num_latents, num_outputs)
-        self.linear3 = nn.Linear(num_outputs, num_outputs)
-
-    def encode(self, x):
-        x = self.relu(self.conv1(x))
-        x = self.relu(self.conv2(x))
-        x = self.relu(self.conv3(x))
-
-        # mu, logprob
-        return torch.sigmoid(self.linear1_mu(x.view(-1, 128 * 16 * 16))), torch.sigmoid(
-            self.linear1_stddev(x.view(-1, 128 * 16 * 16)))
-
-    def decode(self, z):
-        x = self.relu(self.linear2(z))
-        return torch.sigmoid(self.linear3(x))
-
-    def forward(self, x):
-        raise NotImplementedError("shouldn't use this directly")
-
-
 env = Renderer(params["WIDTH"], params["HEIGHT"])
 
 # data_generator = CubeSingleViewGenerator(params["WIDTH"], params["HEIGHT"])
@@ -92,9 +58,39 @@ data_generator = RotatingCubeGenerator(params["WIDTH"], params["HEIGHT"])
 torch.manual_seed(params["SEED"])
 np.random.seed(params["SEED"])
 
-policy = Policy(params["LATENT_SIZE"], 160).to(device)
+# TODO: the point of this script is to kick out the policy and learn the 160 mus and variances directly,
+#  since the shape is fixed and the network doesn't need any input
 
-optimizer = torch.optim.Adam(policy.parameters(), lr=params["LR"])
+# TODO: ACTUALLY IMPLEMENT THIS
+
+# TODO, see https://discuss.pytorch.org/t/valueerror-cant-optimize-a-non-leaf-tensor/21751/3
+
+# latent = np.ones(160) * .5
+#
+# w_ = torch.tensor(1., requires_grad=True)
+# 	b_ = torch.tensor(0.1, requires_grad=True)
+# 	w = w_.to(device)
+# 	b = b_.to(device)
+#
+#
+# 	criteon = nn.MSELoss()
+# 	optimizer = optim.Adam([w_, b_], lr=lr)
+#
+# 	for i in range(500):
+# 		x = torch.rand(1).to(device)[0]
+#
+#
+# 		pred = w * x + b
+# 		y = 2 * x + 3
+# 		loss = criteon(pred, y)
+#
+# 		grads = torch.autograd.grad(loss, [w_, b_])
+# 		w_.grad.fill_(grads[0])
+# 		b_.grad.fill_(grads[1])
+# 		optimizer.step()
+
+
+optimizer = torch.optim.Adam(a.parameters(), lr=params["LR"])
 eps = np.finfo(np.float32).eps.item()
 
 if not os.path.exists(exp_dir):
