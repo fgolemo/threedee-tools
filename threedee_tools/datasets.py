@@ -31,7 +31,7 @@ class RandomSingleViewGenerator(object):
 
 
 class RotatingRandomShapeGenerator(object):
-    def __init__(self, width, height, smin=0.4, smax=.8):
+    def __init__(self, width, height, smin=.4, smax=.8):
         self.renderer = Renderer(width, height, "sphere", True)
         self.shape = np.random.uniform(smin, smax, 160)
         self.cam = None
@@ -88,7 +88,13 @@ if __name__ == '__main__':
     #     plt.imshow(sample)
     #     plt.show()
 
-    gen = RotatingConstantShapeGenerator(128, 128, .7)
+    # gen = RotatingConstantShapeGenerator(128, 128, .7)
+    # while True:
+    #     sample = gen.sample()
+    #     plt.imshow(sample)
+    #     plt.show()
+
+    gen = RotatingRandomShapeGenerator(128, 128)
     while True:
         sample = gen.sample()
         plt.imshow(sample)

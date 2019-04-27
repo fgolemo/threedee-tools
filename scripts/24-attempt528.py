@@ -9,7 +9,7 @@ import torch
 from torch.nn import functional as F
 from tqdm import trange
 
-from threedee_tools.datasets import RotatingConstantShapeGenerator
+from threedee_tools.datasets import RotatingConstantShapeGenerator, RotatingRandomShapeGenerator
 from threedee_tools.renderer import Renderer
 
 
@@ -22,8 +22,9 @@ params = {
     "WIDTH": 64,
     "HEIGHT": 64,
     "LR": 1e-4,  # learning rate
-    "KLD_WEIGHT": 1,  # learning rate
-    "KLD_DELAY": 0  # how many episodes do we skip adding the KLD to the loss
+    "KLD_WEIGHT": .1,  # learning rate
+    "KLD_DELAY": 0,  # how many episodes do we skip adding the KLD to the loss
+    "VARIANCE_WEIGHT": 2
 }
 
 npa = np.array
@@ -39,7 +40,7 @@ experiment = Experiment(api_key="ZfKpzyaedH6ajYSiKmvaSwyCs",
                         project_name="rezende", workspace="fgolemo")
 experiment.log_parameters(params)
 experiment.set_name(exp_name)
-
+experiment.add_tag("random-shape")
 
 def normal(x, mu, sigma_sq):
     a = (-1 * (x - mu).pow(2) / (2 * sigma_sq)).exp()
@@ -86,7 +87,7 @@ class Policy(nn.Module):
 env = Renderer(params["WIDTH"], params["HEIGHT"])
 
 # data_generator = CubeSingleViewGenerator(params["WIDTH"], params["HEIGHT"])
-data_generator = RotatingConstantShapeGenerator(params["WIDTH"], params["HEIGHT"], .7)
+data_generator = RotatingRandomShapeGenerator(params["WIDTH"], params["HEIGHT"])
 
 torch.manual_seed(params["SEED"])
 np.random.seed(params["SEED"])
@@ -131,7 +132,7 @@ for i_episode in trange(params["NUM_EPISODES"]):
     for k in range(params["SAMPLES"]):
         # sample K times
         # eps = torch.randn(latent_mu.size()).to(device)
-        eps = torch.normal(mean=torch.zeros_like(latent_mu), std=.2).to(device)
+        eps = torch.normal(mean=torch.zeros_like(latent_mu), std=.1).to(device)
         action = torch.sigmoid(latent_mu + latent_variance.sqrt() * eps)
         prob = normal(action, latent_mu, latent_variance)
         log_prob = (prob + 0.0000001).log()
@@ -175,7 +176,7 @@ for i_episode in trange(params["NUM_EPISODES"]):
     if i_episode >= params["KLD_DELAY"]:
         policy_loss_sum += params["KLD_WEIGHT"] * KLD
 
-    policy_loss_sum += torch.norm(latent_variance)
+    policy_loss_sum += params["VARIANCE_WEIGHT"] * torch.norm(latent_variance)
 
     loss_copy = policy_loss_sum.detach().cpu().numpy().copy()
     policy_loss_sum.backward()
@@ -185,9 +186,12 @@ for i_episode in trange(params["NUM_EPISODES"]):
     if i_episode % params["CHKP_FREQ"] == 0:
         torch.save(policy.state_dict(), os.path.join(exp_dir, 'reinforce-' + str(i_episode) + '.pkl'))
 
-        img = np.zeros((params["HEIGHT"], params["WIDTH"] * 2, 3), dtype=np.uint8)
+        img = np.zeros((params["HEIGHT"], params["WIDTH"] * 3, 3), dtype=np.uint8)
         img[:, :params["WIDTH"], :] = np.around(state_raw * 255, 0)
-        img[:, params["WIDTH"]:, :] = np.around(next_state * 255, 0)
+        img[:, params["WIDTH"]:params["WIDTH"]*2, :] = np.around(next_state * 255, 0)
+        diff = np.sum(state_raw - next_state, axis=2) + 2 / 4
+        diff = np.dstack((diff, diff, diff))
+        img[:, params["WIDTH"]*2:, :] = np.around((diff) * 255, 0)
         experiment.log_image(img, name="{:04d}".format(i_episode))
 
     experiment.log_metric("rewards", np.mean(rewards_raw))
