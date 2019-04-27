@@ -30,6 +30,17 @@ class RandomSingleViewGenerator(object):
         return self.renderer.render(np.random.uniform(self.min, self.max, 160), self.cam)
 
 
+class RotatingRandomShapeGenerator(object):
+    def __init__(self, width, height, smin=0.4, smax=.8):
+        self.renderer = Renderer(width, height, "sphere", True)
+        self.shape = np.random.uniform(smin, smax, 160)
+        self.cam = None
+
+    def sample(self):
+        self.cam = np.random.uniform(-1, 1, 3)
+        return self.renderer.render(self.shape, self.cam)
+
+
 class ConstantShapeGenerator(object):
     def __init__(self, width, height):
         self.renderer = Renderer(width, height, "sphere", True)
@@ -38,6 +49,16 @@ class ConstantShapeGenerator(object):
     def sample(self):
         shape = np.ones(160) * .5
         return self.renderer.render(shape, self.cam)
+
+
+class RotatingConstantShapeGenerator(object):
+    def __init__(self, width, height, radius=.5):
+        self.renderer = Renderer(width, height, "sphere", True)
+        self.shape = np.ones(160) * radius
+
+    def sample(self):
+        self.cam = np.random.uniform(-1, 1, 3)
+        return self.renderer.render(self.shape, self.cam)
 
 
 class CubeSphereComparisonGenerator(object):
@@ -55,7 +76,7 @@ class CubeSphereComparisonGenerator(object):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
-    # cg = CubeGenerator(128,128)
+    # cg = CubeSingleViewGenerator(128,128)
     # while True:
     #     cube = cg.sample()
     #     plt.imshow(cube)
@@ -67,12 +88,18 @@ if __name__ == '__main__':
     #     plt.imshow(sample)
     #     plt.show()
 
-    gen = CubeSphereComparisonGenerator(128, 128)
+    gen = RotatingConstantShapeGenerator(128, 128, .7)
     while True:
-        cube, sphere = gen.sample()
-        plt.subplot(2, 1, 1)
-        plt.imshow(cube)
-        plt.subplot(2, 1, 2)
-        plt.imshow(sphere)
-        plt.tight_layout()
+        sample = gen.sample()
+        plt.imshow(sample)
         plt.show()
+
+    # gen = CubeSphereComparisonGenerator(128, 128)
+    # while True:
+    #     cube, sphere = gen.sample()
+    #     plt.subplot(2, 1, 1)
+    #     plt.imshow(cube)
+    #     plt.subplot(2, 1, 2)
+    #     plt.imshow(sphere)
+    #     plt.tight_layout()
+    #     plt.show()

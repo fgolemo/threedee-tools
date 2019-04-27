@@ -1,0 +1,195 @@
+from comet_ml import Experiment
+import os
+from time import strftime
+
+import numpy as np
+
+import torch.nn as nn
+import torch
+from torch.nn import functional as F
+from tqdm import trange
+
+from threedee_tools.datasets import RotatingConstantShapeGenerator
+from threedee_tools.renderer import Renderer
+
+
+params = {
+    "SEED": 123,
+    "SAMPLES": 100,
+    "NUM_EPISODES": 1000,
+    "LATENT_SIZE": 160,
+    "CHKP_FREQ": 2,  # model saving freq
+    "WIDTH": 64,
+    "HEIGHT": 64,
+    "LR": 1e-4,  # learning rate
+    "KLD_WEIGHT": 1,  # learning rate
+    "KLD_DELAY": 0  # how many episodes do we skip adding the KLD to the loss
+}
+
+npa = np.array
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+pi = torch.Tensor([np.pi]).float().to(device)
+
+exp_name = "24-newReparam"
+exp_dir = "experiments/" + exp_name + "-" + strftime("%Y%m%d%H%M%S")
+
+experiment = Experiment(api_key="ZfKpzyaedH6ajYSiKmvaSwyCs",
+                        project_name="rezende", workspace="fgolemo")
+experiment.log_parameters(params)
+experiment.set_name(exp_name)
+
+
+def normal(x, mu, sigma_sq):
+    a = (-1 * (x - mu).pow(2) / (2 * sigma_sq)).exp()
+    b = 1 / (2 * sigma_sq * pi.expand_as(sigma_sq)).sqrt()
+
+    return a * b
+
+
+class Policy(nn.Module):
+    def __init__(self, num_latents, num_outputs):
+        super(Policy, self).__init__()
+
+        self.relu = nn.ReLU()
+
+        # inference part
+        self.conv1 = nn.Conv2d(3, 32, (3, 3), (1, 1), (1, 1))
+        self.conv2 = nn.Conv2d(32, 64, (3, 3), (2, 2), (1, 1))
+        self.conv3 = nn.Conv2d(64, 128, (3, 3), (2, 2), (1, 1))
+
+        # inference: conv to latent
+        self.linear1_mu = nn.Linear(128 * 16 * 16, num_latents)
+        self.linear1_stddev = nn.Linear(128 * 16 * 16, num_latents)
+
+        self.linear2 = nn.Linear(num_latents, num_outputs)
+        self.linear3 = nn.Linear(num_outputs, num_outputs)
+
+    def encode(self, x):
+        x = self.relu(self.conv1(x))
+        x = self.relu(self.conv2(x))
+        x = self.relu(self.conv3(x))
+
+        # mu, logprob
+        return torch.sigmoid(self.linear1_mu(x.view(-1, 128 * 16 * 16))), torch.sigmoid(
+            self.linear1_stddev(x.view(-1, 128 * 16 * 16)))
+
+    def decode(self, z):
+        x = self.relu(self.linear2(z))
+        return torch.sigmoid(self.linear3(x))
+
+    def forward(self, x):
+        raise NotImplementedError("shouldn't use this directly")
+
+
+env = Renderer(params["WIDTH"], params["HEIGHT"])
+
+# data_generator = CubeSingleViewGenerator(params["WIDTH"], params["HEIGHT"])
+data_generator = RotatingConstantShapeGenerator(params["WIDTH"], params["HEIGHT"], .7)
+
+torch.manual_seed(params["SEED"])
+np.random.seed(params["SEED"])
+
+policy = Policy(params["LATENT_SIZE"], 160).to(device)
+
+optimizer = torch.optim.Adam(policy.parameters(), lr=params["LR"])
+eps = np.finfo(np.float32).eps.item()
+
+if not os.path.exists(exp_dir):
+    os.mkdir(exp_dir)
+
+import matplotlib.pyplot as plt
+
+for i_episode in trange(params["NUM_EPISODES"]):
+    # sample image
+    state_raw = npa(data_generator.sample(), dtype=np.float32) / 255
+
+    state = torch.Tensor([np.swapaxes(state_raw, 0, 2)]).to(device)
+
+    # encode to latent variables (mu/var)
+    latent_mu, latent_variance = policy.encode(state)
+
+    experiment.log_metric("mu mean", np.mean(latent_mu.detach().view(-1).cpu().numpy()))
+    experiment.log_metric("mu min", np.min(latent_mu.detach().view(-1).cpu().numpy()))
+    experiment.log_metric("mu max", np.max(latent_mu.detach().view(-1).cpu().numpy()))
+
+    experiment.log_metric("var mean", np.mean(latent_variance.detach().view(-1).cpu().numpy()))
+    experiment.log_metric("var min", np.min(latent_variance.detach().view(-1).cpu().numpy()))
+    experiment.log_metric("var max", np.max(latent_variance.detach().view(-1).cpu().numpy()))
+
+    # calculate additional VAE loss
+    # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
+    KLD = -0.5 * torch.sum(1 + torch.log(latent_variance) - latent_mu.pow(2) - latent_variance)
+    # KLD = -0.5 * torch.sum(1 + latent_logvar - latent_mu.pow(2) - latent_logvar.exp())
+
+    rewards = []
+    rewards_raw = []
+    log_probs = []
+    entropies = []
+
+    for k in range(params["SAMPLES"]):
+        # sample K times
+        # eps = torch.randn(latent_mu.size()).to(device)
+        eps = torch.normal(mean=torch.zeros_like(latent_mu), std=.2).to(device)
+        action = torch.sigmoid(latent_mu + latent_variance.sqrt() * eps)
+        prob = normal(action, latent_mu, latent_variance)
+        log_prob = (prob + 0.0000001).log()
+        entropy = -0.5 * ((latent_variance + 2 * pi.expand_as(latent_variance)).log() + 1)
+
+        log_probs.append(log_prob)
+        entropies.append(entropy)
+
+        # vertex_params = policy.decode(action).detach().view(-1).cpu().numpy()
+        vertex_params = action.detach().view(-1).cpu().numpy()
+
+        experiment.log_metric("vertices mean", np.mean(vertex_params))
+        experiment.log_metric("vertices min", np.min(vertex_params))
+        experiment.log_metric("vertices max", np.max(vertex_params))
+
+        # render out an image for each of the K samples
+        # IMPORTANT THIS CURRENTLY ASSUMES BATCH SIZE = 1
+        next_state = env.render(vertex_params, data_generator.cam)
+        next_state = npa(next_state, dtype=np.float32) / 255
+
+        # calculate reward for each one of the K samples
+        reward_raw = -F.binary_cross_entropy(
+            torch.tensor(next_state, requires_grad=False).float(),
+            torch.tensor(state_raw, requires_grad=False).float(), reduction='sum')
+
+        rewards_raw.append(reward_raw)
+
+    # deduct average reward of all K-1 samples (variance reduction)
+    rewards = npa(rewards_raw) - np.mean(rewards_raw)
+
+    returns = torch.tensor(rewards).float().to(device)
+
+    policy_loss = []
+    for log_prob, R, ent in zip(log_probs, returns, entropies):
+        # policy_loss.append(-log_prob * R - (0.0001 * ent))
+        policy_loss.append(-log_prob * R)
+
+    optimizer.zero_grad()
+
+    policy_loss_sum = torch.cat(policy_loss).sum() / len(policy_loss)
+    if i_episode >= params["KLD_DELAY"]:
+        policy_loss_sum += params["KLD_WEIGHT"] * KLD
+
+    policy_loss_sum += torch.norm(latent_variance)
+
+    loss_copy = policy_loss_sum.detach().cpu().numpy().copy()
+    policy_loss_sum.backward()
+
+    optimizer.step()
+
+    if i_episode % params["CHKP_FREQ"] == 0:
+        torch.save(policy.state_dict(), os.path.join(exp_dir, 'reinforce-' + str(i_episode) + '.pkl'))
+
+        img = np.zeros((params["HEIGHT"], params["WIDTH"] * 2, 3), dtype=np.uint8)
+        img[:, :params["WIDTH"], :] = np.around(state_raw * 255, 0)
+        img[:, params["WIDTH"]:, :] = np.around(next_state * 255, 0)
+        experiment.log_image(img, name="{:04d}".format(i_episode))
+
+    experiment.log_metric("rewards", np.mean(rewards_raw))
+    experiment.log_metric("loss", float(loss_copy))
+    experiment.log_metric("kld", KLD.item())

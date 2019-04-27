@@ -108,3 +108,4 @@ venv.bak/
 scripts/ckpt_*
 scripts/3DR-*
 
+scripts/experiments/*
