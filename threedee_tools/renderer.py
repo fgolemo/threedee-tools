@@ -2,9 +2,9 @@ import moderngl
 from PIL import Image
 from pyrr import Matrix44
 import numpy as np
-from threedee_tools.shaders import VERTEX_SHADER_NORMAL, FARGMENT_SHADER_LIGHT_COLOR
+from threedee_tools.shaders import VERTEX_SHADER_NORMAL, FARGMENT_SHADER_LIGHT_COLOR, FARGMENT_SHADER_MULTI_LIGHT
 from threedee_tools.utils_3d import sphere_vertices, CUBE_FACE, get_unique_vertices, \
-    scale_vertices_dry, scale_vertices, cube_vertices, FACE_COLORS_CUBE, FACE_COLORS_SPHERE
+    scale_vertices_dry, scale_vertices, cube_vertices, FACE_COLORS_CUBE, FACE_COLORS_SPHERE, FACE_COLORS_WHITE
 
 
 class Renderer(object):
@@ -18,18 +18,34 @@ class Renderer(object):
         self.scaled = scaled
 
         self.ctx = moderngl.create_standalone_context()
-        self.prog = self.ctx.program(
-            vertex_shader=VERTEX_SHADER_NORMAL,
-            fragment_shader=FARGMENT_SHADER_LIGHT_COLOR)
+
+        frag_shader = FARGMENT_SHADER_LIGHT_COLOR
+        self.misc = {}
+
+        # light position (will stay in place, independent of object/cam rotation)
+        self.base_light = np.array((10, 10, 10))
 
         if shape == "sphere":
             self.verts_base, self.faces_base = sphere_vertices(CUBE_FACE, sphere_subdiv)
             self.colors = FACE_COLORS_SPHERE
+        if shape == "iqtt":
+            self.verts_base, self.faces_base = sphere_vertices(CUBE_FACE, sphere_subdiv)
+            self.colors = FACE_COLORS_WHITE
+            frag_shader = FARGMENT_SHADER_MULTI_LIGHT
+            self.misc = {
+                "RedLightPos": np.array((2, 3, 2)),
+                "GreenLightPos": np.array((3, 2, 0))
+            }
+            self.base_light = np.array((3, 3, 3))
         elif shape == "cube":
             self.verts_base, self.faces_base = cube_vertices()
             self.colors = FACE_COLORS_CUBE
         else:
             assert NotImplementedError("Shape not implemented: '{}'".format(shape))
+
+        self.prog = self.ctx.program(
+            vertex_shader=VERTEX_SHADER_NORMAL,
+            fragment_shader=frag_shader)
 
         self.unique_verts = get_unique_vertices(self.verts_base)
         self.iiis = scale_vertices_dry(self.faces_base, self.unique_verts)
@@ -39,9 +55,6 @@ class Renderer(object):
         self.fbo.use()
 
         self.proj = Matrix44.perspective_projection(45.0, width / height, 0.1, 1000.0)
-
-        # light position (will stay in place, independent of object/cam rotation)
-        self.base_light = np.array((10, 10, 10))
 
     def sanitize(self, vertex_values, rotation_values):
         return np.clip(vertex_values, 0, 1), \
@@ -72,6 +85,10 @@ class Renderer(object):
         )
 
         rotate = np.array(Matrix44.from_eulers(rotation_values))
+
+        for key, val in self.misc.items():
+            self.prog[key].value = tuple(np.matmul(rotate[:3, :3], val).reshape(1, -1)[0])
+
         self.prog['Lights'].value = tuple(np.matmul(rotate[:3, :3], self.base_light).reshape(1, -1)[0])
         self.prog['Mvp'].write((self.proj * lookat * rotate).astype('f4').tobytes())
 

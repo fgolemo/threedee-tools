@@ -24,12 +24,9 @@ FARGMENT_SHADER_LIGHT_COLOR = '''
 
         uniform vec3 Lights;
         uniform vec3 Color;
-        //uniform bool UseTexture;
-        //uniform sampler2D Texture;
 
         in vec3 v_vert;
         in vec3 v_norm;
-        //in vec2 v_text;
 
         out vec4 f_color;
 
@@ -42,5 +39,52 @@ FARGMENT_SHADER_LIGHT_COLOR = '''
                 0.0, 
                 1.0) * 0.6 + 0.4;
             f_color = vec4(Color * lum, 1.0);
+        }
+    '''
+
+FARGMENT_SHADER_MULTI_LIGHT = '''
+        #version 330
+
+        uniform vec3 RedLightPos;
+        uniform vec3 GreenLightPos;
+        uniform vec3 Lights;
+        uniform vec3 Color;
+
+        in vec3 v_vert;
+        in vec3 v_norm;
+
+        out vec4 f_color;
+
+        void main() {
+            float lum = clamp(
+                dot(
+                    normalize(-Lights), 
+                    normalize(v_norm)
+                ),
+                0.0, 
+                1.0) * 0.6 + 0.3;
+            vec3 combinedLight = Color * lum;
+            
+            // RED
+            lum = clamp(
+                dot(
+                    normalize(RedLightPos - v_vert), 
+                    normalize(v_norm)
+                ),
+                0.0, 
+                1.0) * .5;
+            combinedLight += vec3(.9,.25,.25) * lum;
+            
+            // GREEN
+            lum = clamp(
+                dot(
+                    normalize(GreenLightPos - v_vert), 
+                    normalize(v_norm)
+                ),
+                0.0, 
+                1.0) * .5;
+            combinedLight += vec3(.3,.9,.3) * lum;
+            
+            f_color = vec4(combinedLight, 1.0);
         }
     '''

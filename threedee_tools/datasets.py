@@ -73,32 +73,47 @@ class CubeSphereComparisonGenerator(object):
         return self.cube.render(np.zeros(160), cam), self.sphere.render(self.shape, cam)
 
 
+class RotatingSingle3DIQTTGenerator(object):
+    def __init__(self, width, height, smin=.5, smax=1):
+        self.renderer = Renderer(width, height, "iqtt", True)
+        self.shape = np.random.uniform(smin, smax, 160)
+
+    def sample(self, cam=None):
+        if cam is None:
+            self.cam = np.random.uniform(-1, 1, 3)
+        else:
+            self.cam = cam
+        return self.renderer.render(self.shape, self.cam)
+
+
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
-    # cg = CubeSingleViewGenerator(128,128)
-    # while True:
-    #     cube = cg.sample()
-    #     plt.imshow(cube)
-    #     plt.show()
-
+    # gen = CubeSingleViewGenerator(128,128)
     # gen = RandomSingleViewGenerator(128, 128, .5, 1)
-    # while True:
-    #     sample = gen.sample()
-    #     plt.imshow(sample)
-    #     plt.show()
-
     # gen = RotatingConstantShapeGenerator(128, 128, .7)
+    # gen = RotatingRandomShapeGenerator(128, 128)
+    # gen = RotatingSingle3DIQTTGenerator(128, 128)
     # while True:
     #     sample = gen.sample()
     #     plt.imshow(sample)
     #     plt.show()
 
-    gen = RotatingRandomShapeGenerator(128, 128)
+    gen = RotatingSingle3DIQTTGenerator(128, 128)
+
+    image = np.random.uniform(0, 254, size=(128, 128, 3))
+    fig, ax = plt.subplots()
+    image_container = ax.imshow(image)
+
+    rot_x = -1
     while True:
-        sample = gen.sample()
-        plt.imshow(sample)
-        plt.show()
+        sample = gen.sample(cam=np.array([0,rot_x,rot_x]))
+        image_container.set_data(sample)
+        fig.canvas.draw()
+        plt.pause(0.01)
+        rot_x += 0.01
+        if rot_x > 1:
+            rot_x = -1
 
     # gen = CubeSphereComparisonGenerator(128, 128)
     # while True:
