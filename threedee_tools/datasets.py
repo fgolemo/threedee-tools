@@ -1,3 +1,8 @@
+import os
+
+import torch
+from threediqtt.dataset import ValDataset, TestDataset
+
 from threedee_tools.renderer import Renderer
 import numpy as np
 
@@ -16,6 +21,16 @@ class CubeSingleViewGenerator(object):
         self.cam = np.random.uniform(-1, 1, 3)
 
     def sample(self):
+        return self.renderer.render(np.zeros(160), self.cam)
+
+
+class RotatingCubeGenerator(object):
+    def __init__(self, width, height):
+        self.renderer = Renderer(width, height, "cube", False)
+        self.cam = None
+
+    def sample(self):
+        self.cam = np.random.uniform(-1, 1, 3)
         return self.renderer.render(np.zeros(160), self.cam)
 
 
@@ -86,34 +101,62 @@ class RotatingSingle3DIQTTGenerator(object):
         return self.renderer.render(self.shape, self.cam)
 
 
+class IQTTLoader(object):
+    def __init__(self, greyscale=False):
+        self.ds = TestDataset(os.path.expanduser("~/Downloads/3diqtt-v2-test.h5"))
+        self.gs = greyscale
+
+    def sample(self, as_np=False):
+        random_idx = np.random.randint(0, len(self.ds))
+        img_q = self.ds[random_idx]["question"][0]
+
+        if self.gs:
+            img_q = torch.sum(img_q, dim=0, keepdim=True) / 3
+            img_q = torch.stack((img_q[0, :, :], img_q[0, :, :], img_q[0, :, :]))
+
+        if as_np:
+            return img_q.permute(1, 2, 0).numpy()
+        else:
+            return img_q
+
+
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
+
+    #### Different basic shape gens
 
     # gen = CubeSingleViewGenerator(128,128)
     # gen = RandomSingleViewGenerator(128, 128, .5, 1)
     # gen = RotatingConstantShapeGenerator(128, 128, .7)
     # gen = RotatingRandomShapeGenerator(128, 128)
     # gen = RotatingSingle3DIQTTGenerator(128, 128)
-    # while True:
-    #     sample = gen.sample()
-    #     plt.imshow(sample)
-    #     plt.show()
-
-    gen = RotatingSingle3DIQTTGenerator(128, 128)
-
-    image = np.random.uniform(0, 254, size=(128, 128, 3))
-    fig, ax = plt.subplots()
-    image_container = ax.imshow(image)
-
-    rot_x = -1
+    gen = IQTTLoader(greyscale=True)
     while True:
-        sample = gen.sample(cam=np.array([0,rot_x,rot_x]))
-        image_container.set_data(sample)
-        fig.canvas.draw()
-        plt.pause(0.01)
-        rot_x += 0.01
-        if rot_x > 1:
-            rot_x = -1
+        sample = gen.sample(as_np=True)
+        # print (np.min(sample), np.max(sample))
+        plt.imshow(sample)
+        plt.show()
+
+    #### ROTATING REZENDE
+
+    # gen = RotatingSingle3DIQTTGenerator(128, 128)
+    # image = np.random.uniform(0, 254, size=(128, 128, 3))
+    # fig, ax = plt.subplots()
+    # image_container = ax.imshow(image)
+    # rot_x = -1
+    # while True:
+    #     sample = gen.sample(cam=np.array([0, rot_x, rot_x]))
+    #     image_container.set_data(sample)
+    #     # greyscale = np.sum(sample, axis=2)/(255*3)
+    #     # greyscale = np.dstack((greyscale, greyscale, greyscale))
+    #     # image_container.set_data(greyscale)
+    #     fig.canvas.draw()
+    #     plt.pause(0.01)
+    #     rot_x += 0.01
+    #     if rot_x > 1:
+    #         rot_x = -1
+
+    # JUST MAKING SURE THE CUBE COLORS ARE COHERENT WITH REZENDE
 
     # gen = CubeSphereComparisonGenerator(128, 128)
     # while True:
