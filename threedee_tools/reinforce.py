@@ -1,14 +1,11 @@
 import math
-
-import torch.optim as optim
-import torch.nn.utils as utils
-import torch.nn.functional as F
+from torch import nn
 import torch
-from torch.distributions import Normal
-import numpy as np
+
 pi = torch.FloatTensor([math.pi])
 if torch.cuda.is_available():
     pi = pi.cuda()
+
 
 def normal(x, mu, sigma_sq):
     a = (-1 * (x - mu).pow(2) / (2 * sigma_sq)).exp()
@@ -16,50 +13,36 @@ def normal(x, mu, sigma_sq):
     return a * b
 
 
-class REINFORCE:
-    def __init__(self, hidden_size, num_inputs, action_space, policy, steps=100):
-        self.action_space = action_space
-        self.steps = steps
-        self.model = policy(hidden_size, num_inputs, action_space)
-        if torch.cuda.is_available():
-            self.model = self.model.cuda()
-        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-3)
-        self.model.train()
+class ReinforcePolicy(nn.Module):
+    def __init__(self, num_latents, num_outputs):
+        super(ReinforcePolicy, self).__init__()
 
-    def select_action(self, state):
-        # mu, sigma_sq = self.model(state.cuda())
-        mu, sigma_sq = self.model(state)
-        sigma_sq = F.softplus(sigma_sq)
+        self.relu = nn.ReLU()
 
-        # eps = torch.randn(mu.size()).cuda()
-        eps = torch.randn(mu.size())
-        if torch.cuda.is_available():
-            eps = eps.cuda()
-        # calculate the probability
-        action = (mu + sigma_sq.sqrt() * eps).data
-        prob = normal(action, mu, sigma_sq)
-        entropy = -0.5 * ((sigma_sq + 2 * pi.expand_as(sigma_sq)).log() + 1)
+        # inference part
+        self.conv1 = nn.Conv2d(3, 32, (3, 3), (1, 1), (1, 1))
+        self.conv2 = nn.Conv2d(32, 64, (3, 3), (2, 2), (1, 1))
+        self.conv3 = nn.Conv2d(64, 128, (3, 3), (2, 2), (1, 1))
 
-        log_prob = prob.log()
-        return action, log_prob, entropy
+        # inference: conv to latent
+        self.linear1_mu = nn.Linear(128 * 16 * 16, num_latents)
+        self.linear1_stddev = nn.Linear(128 * 16 * 16, num_latents)
 
-    def update_parameters(self, rewards, log_probs, entropies, gamma):
-        R = torch.zeros(self.action_space)
-        loss = 0
-        for i in reversed(range(len(rewards))):
-            R = gamma * R + rewards[i]
-            # loss = loss - (log_probs[i] * (R.expand_as(log_probs[i])).cuda()).sum() - (
-            #         0.0001 * entropies[i].cuda()).sum()
-            R_exp = R.expand_as(log_probs[i])
-            if torch.cuda.is_available():
-                R_exp = R_exp.cuda()
-            loss = loss - (log_probs[i] * R_exp).sum() - (0.0001 * entropies[i]).sum()
-        loss = loss / len(rewards)
+        self.linear2 = nn.Linear(num_latents, num_outputs)
+        self.linear3 = nn.Linear(num_outputs, num_outputs)
 
-        self.optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 40)
-        self.optimizer.step()
-        del loss
+    def encode(self, x):
+        x = self.relu(self.conv1(x))
+        x = self.relu(self.conv2(x))
+        x = self.relu(self.conv3(x))
 
+        # mu, logprob
+        return torch.sigmoid(self.linear1_mu(x.view(-1, 128 * 16 * 16))), torch.sigmoid(
+            self.linear1_stddev(x.view(-1, 128 * 16 * 16)))
 
+    def decode(self, z):
+        x = self.relu(self.linear2(z))
+        return torch.sigmoid(self.linear3(x))
+
+    def forward(self, x):
+        raise NotImplementedError("shouldn't use this directly")

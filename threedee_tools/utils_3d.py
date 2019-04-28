@@ -338,3 +338,16 @@ def scale_vertices_dry(faces, verts):
             iiis.append(get_scale_for_vert_dry(verts, v))
 
     return iiis
+
+def make_greyscale(img):
+    greyscale = np.sum(img, axis=2) / (255 * 3)
+    greyscale = np.dstack((greyscale, greyscale, greyscale))
+    return greyscale
+
+def t2n(img):
+    """ convert torch tensor img to numpy img
+
+    :param img:
+    :return:
+    """
+    return img[0,:,:,:].permute(1, 2, 0).numpy()

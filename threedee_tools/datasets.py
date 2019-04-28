@@ -130,31 +130,31 @@ if __name__ == '__main__':
     # gen = RotatingConstantShapeGenerator(128, 128, .7)
     # gen = RotatingRandomShapeGenerator(128, 128)
     # gen = RotatingSingle3DIQTTGenerator(128, 128)
-    gen = IQTTLoader(greyscale=True)
-    while True:
-        sample = gen.sample(as_np=True)
-        # print (np.min(sample), np.max(sample))
-        plt.imshow(sample)
-        plt.show()
+    # gen = IQTTLoader(greyscale=True)
+    # while True:
+    #     sample = gen.sample(as_np=True)
+    #     # print (np.min(sample), np.max(sample))
+    #     plt.imshow(sample)
+    #     plt.show()
 
     #### ROTATING REZENDE
 
-    # gen = RotatingSingle3DIQTTGenerator(128, 128)
-    # image = np.random.uniform(0, 254, size=(128, 128, 3))
-    # fig, ax = plt.subplots()
-    # image_container = ax.imshow(image)
-    # rot_x = -1
-    # while True:
-    #     sample = gen.sample(cam=np.array([0, rot_x, rot_x]))
-    #     image_container.set_data(sample)
-    #     # greyscale = np.sum(sample, axis=2)/(255*3)
-    #     # greyscale = np.dstack((greyscale, greyscale, greyscale))
-    #     # image_container.set_data(greyscale)
-    #     fig.canvas.draw()
-    #     plt.pause(0.01)
-    #     rot_x += 0.01
-    #     if rot_x > 1:
-    #         rot_x = -1
+    gen = RotatingSingle3DIQTTGenerator(128, 128)
+    image = np.random.uniform(0, 254, size=(128, 128, 3))
+    fig, ax = plt.subplots()
+    image_container = ax.imshow(image)
+    rot_x = -1
+    while True:
+        sample = gen.sample(cam=np.array([0, rot_x, rot_x]))
+        image_container.set_data(sample)
+        # greyscale = np.sum(sample, axis=2)/(255*3)
+        # greyscale = np.dstack((greyscale, greyscale, greyscale))
+        # image_container.set_data(greyscale)
+        fig.canvas.draw()
+        plt.pause(0.01)
+        rot_x += 0.01
+        if rot_x > 1:
+            rot_x = -1
 
     # JUST MAKING SURE THE CUBE COLORS ARE COHERENT WITH REZENDE
 

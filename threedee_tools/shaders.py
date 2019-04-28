@@ -62,7 +62,7 @@ FARGMENT_SHADER_MULTI_LIGHT = '''
                     normalize(v_norm)
                 ),
                 0.0, 
-                1.0) * 0.6 + 0.3;
+                1.0) * 0.5 + 0.2;
             vec3 combinedLight = Color * lum;
             
             // RED
