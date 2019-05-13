@@ -3,14 +3,11 @@ import os
 from time import strftime
 
 import numpy as np
-
-import torch.nn as nn
 import torch
 from torch.nn import functional as F
 from tqdm import trange
 
-from threedee_tools.datasets import RotatingConstantShapeGenerator, RotatingRandomShapeGenerator, RotatingCubeGenerator, \
-    IQTTLoader
+from threedee_tools.datasets import IQTTLoader
 from threedee_tools.reinforce import ReinforcePolicy
 from threedee_tools.renderer import Renderer
 from threedee_tools.utils_3d import make_greyscale, t2n
