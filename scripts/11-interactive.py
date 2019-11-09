@@ -35,25 +35,25 @@ class ShapeConfig():
         self.cam_z = -2
 
         self.values = []
-        for x in range(6):
-            for r in range(30):
-                if x == 5 and r > 9:
+        for x in range(7):
+            for r in range(23):
+                if x == 6 and r > 21:
                     break
-                Label(text=r + 1 + (x * 30), relief=RIDGE, width=15).grid(row=r, column=0 + (x * 2))
+                Label(text=r + 1 + (x * 23), relief=RIDGE, width=5).grid(row=r, column=0 + (x * 2))
                 s = Scale(master, from_=0., to=1., resolution=0.1, orient=HORIZONTAL)
                 s.set(1)
                 s.grid(row=r, column=1 + (x * 2))  # length=10,
                 self.values.append(s)
 
-        Button(master, text='max', command=self.max).grid(row=10, column=10, columnspan=2)
-        Button(master, text='randomize', command=self.randomize).grid(row=11, column=10, columnspan=2)
-        Button(master, text='rotate right', command=self.right).grid(row=12, column=10, columnspan=2)
-        Button(master, text='rotate left', command=self.left).grid(row=13, column=10, columnspan=2)
-        Button(master, text='cam up', command=self.cam_up).grid(row=14, column=10, columnspan=2)
-        Button(master, text='cam down', command=self.cam_down).grid(row=15, column=10, columnspan=2)
-        Button(master, text='print config', command=self.print_config).grid(row=16, column=10, columnspan=2)
+        Button(master, text='max', command=self.max).grid(row=16, column=14, columnspan=2)
+        Button(master, text='randomize', command=self.randomize).grid(row=17, column=14, columnspan=2)
+        Button(master, text='rotate right', command=self.right).grid(row=18, column=14, columnspan=2)
+        Button(master, text='rotate left', command=self.left).grid(row=19, column=14, columnspan=2)
+        Button(master, text='cam up', command=self.cam_up).grid(row=20, column=14, columnspan=2)
+        Button(master, text='cam down', command=self.cam_down).grid(row=21, column=14, columnspan=2)
+        Button(master, text='print config', command=self.print_config).grid(row=22, column=14, columnspan=2)
         self.b = Button(master, text="enter values", command=self.popup)
-        self.b.grid(row=17, column=10, columnspan=2)
+        self.b.grid(row=17, column=14, columnspan=2)
 
         width = 512
         height = 512
@@ -63,7 +63,7 @@ class ShapeConfig():
         self.image = Image.fromarray(np.zeros((width, height), dtype=np.uint8))
 
         self.canvas = Canvas(master, height=height, width=width)
-        self.canvas.grid(row=0, column=12, rowspan=30)
+        self.canvas.grid(row=0, column=14, rowspan=15)
         # image = image.resize((basewidth, hsize), PIL.Image.ANTIALIAS)
         self.photo = ImageTk.PhotoImage(self.image)
         self.photo_holder = self.canvas.create_image(

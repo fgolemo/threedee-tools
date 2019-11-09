@@ -1,6 +1,7 @@
 import itertools
 
 import numpy as np
+import torch
 
 
 class Vec3D(object):
@@ -344,10 +345,19 @@ def make_greyscale(img):
     greyscale = np.dstack((greyscale, greyscale, greyscale))
     return greyscale
 
+def make_greyscale_torch(img):
+    img = torch.sum(img, dim=0, keepdim=True) / 3
+    img = torch.stack(
+        (img[0, :, :], img[0, :, :], img[0, :, :]))
+    return img
+
 def t2n(img):
     """ convert torch tensor img to numpy img
 
     :param img:
     :return:
     """
-    return img[0,:,:,:].permute(1, 2, 0).numpy()
+    if len (img.size()) == 4:
+        img = img[0,:,:,:]
+
+    return img.permute(1, 2, 0).numpy()

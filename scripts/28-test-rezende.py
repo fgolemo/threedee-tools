@@ -8,10 +8,29 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 policy = ReinforcePolicy(160, 160)
-policy.load_state_dict(torch.load(MODEL_PATH + "/reinforce-iqtt2.pkl"))
+# policy.load_state_dict(torch.load(MODEL_PATH + "/s0/reinforce-0.pkl")) # 52.17
+# policy.load_state_dict(torch.load(MODEL_PATH + "/s0/reinforce-1.pkl")) # 50.88
+# policy.load_state_dict(torch.load(MODEL_PATH + "/s0/reinforce-2.pkl")) # 53.02%
+# (52.17 + 50.88 + 53.02) / 3 = 52.02%
+
+# policy.load_state_dict(torch.load(MODEL_PATH + "/s200/reinforce-0.pkl")) # 58.379999999999995%
+# policy.load_state_dict(torch.load(MODEL_PATH + "/s200/reinforce-1.pkl")) # 63.82%
+# policy.load_state_dict(torch.load(MODEL_PATH + "/s200/reinforce-2.pkl")) # 62.45%
+# (58.379 + 63.82 + 62.45) / 3 = 61.55%
+
+# policy.load_state_dict(torch.load(MODEL_PATH + "/s1000/reinforce-0.pkl")) # 67.78%
+# policy.load_state_dict(torch.load(MODEL_PATH + "/s1000/reinforce-1.pkl")) # 70.89999999999999%
+# policy.load_state_dict(torch.load(MODEL_PATH + "/s1000/reinforce-2.pkl")) # 71.37%
+# (67.78 + 70.899 + 71.37) / 3 = 70.01 %
+
+# policy.load_state_dict(torch.load(MODEL_PATH + "/s10000/reinforce-0.pkl")) # 71.97%
+# policy.load_state_dict(torch.load(MODEL_PATH + "/s10000/reinforce-1.pkl")) # 78.64%
+# policy.load_state_dict(torch.load(MODEL_PATH + "/s10000/reinforce-2.pkl")) # 79.47%
+# (71.97 + 78.64 + 79.47) / 3 =  76.69 %
+
 policy.eval()
 
-dataset = ValDataset(os.path.expanduser("~/Downloads/3diqtt-v2-val.h5"))
+dataset = ValDataset(os.path.expanduser("/Volumes/dell/3diqtt-v2-val.h5"))
 
 correct = 0
 
