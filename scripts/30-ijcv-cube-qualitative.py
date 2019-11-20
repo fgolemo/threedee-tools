@@ -3,41 +3,30 @@ from time import strftime
 import wandb
 import numpy as np
 import torch
-from threedee_tools.utils_rl import ContrastiveLoss
 from torch.nn import functional as F
-from tqdm import trange, tqdm
+from tqdm import trange
 
-from threedee_tools.datasets import IQTTLoader
+from threedee_tools.datasets import CubeLoader
 from threedee_tools.reinforce import ReinforcePolicy
 from threedee_tools.renderer import Renderer
-from threedee_tools.utils_3d import make_greyscale, t2n
+from threedee_tools.utils_3d import t2n
 
 LOGGING = True
 
 params = {
-    "SEED": 100,
+    "SEED": 123,
     "SAMPLES": 10,
-    "NUM_EPISODES": 3333,
+    "NUM_EPISODES": 1500,
     "LATENT_SIZE": 160,
     "CHKP_FREQ": 10,  # model saving freq
     "WIDTH": 128,
     "HEIGHT": 128,
     "LR": 1e-5,  # learning rate
     "KLD_WEIGHT": .1,  # learning rate
-    "KLD_DELAY": 100,  # how many episodes do we skip adding the KLD to the loss
+    "KLD_DELAY": 0,  # how many episodes do we skip adding the KLD to the loss
     "VARIANCE_WEIGHT": 1,
-    "NOISE": .1,
-    "SUPERVISED_SAMPLES": 100,
-    "SUPERVISED_WEIGHT": 100
+    "NOISE": .1
 }
-
-
-supervised_sample_idxs = [
-    int(round(x)) for x in np.linspace(
-        start=0, stop=params["NUM_EPISODES"], num=params["SUPERVISED_SAMPLES"])
-]
-
-print(supervised_sample_idxs)
 
 npa = np.array
 
@@ -45,11 +34,17 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 pi = torch.Tensor([np.pi]).float().to(device)
 
-exp_name = "29-iqtt"
+exp_name = "30-cube"
 exp_dir = "experiments/" + exp_name + "-" + strftime("%Y%m%d%H%M%S")
 
 if LOGGING:
     wandb.init(project="rezende-30", config=params)
+
+# experiment = Experiment(api_key="ZfKpzyaedH6ajYSiKmvaSwyCs",
+#                         project_name="rezende", workspace="fgolemo")
+# experiment.log_parameters(params)
+# experiment.set_name(exp_name)
+# experiment.add_tag("v3")
 
 
 def normal(x, mu, sigma_sq):
@@ -58,16 +53,16 @@ def normal(x, mu, sigma_sq):
     return a * b
 
 
-env = Renderer(params["WIDTH"], params["HEIGHT"], shape="iqtt")
+env = Renderer(params["WIDTH"], params["HEIGHT"], shape="ijcv")
 
-data_generator = IQTTLoader(greyscale=True)
+data_generator = CubeLoader()
 
 torch.manual_seed(params["SEED"])
 np.random.seed(params["SEED"])
 
 policy = ReinforcePolicy(params["LATENT_SIZE"], 160).to(device)
-
-contrast_loss = ContrastiveLoss()
+if LOGGING:
+    wandb.watch(policy)
 
 optimizer = torch.optim.Adam(policy.parameters(), lr=params["LR"])
 eps = np.finfo(np.float32).eps.item()
@@ -79,8 +74,8 @@ fixed_cam = npa([0, 0, 0])
 
 for i_episode in trange(params["NUM_EPISODES"]):
     # sample image
-    state_q, state_a, state_d1, state_d2 = data_generator.sample_qa()
-    state = state_q.unsqueeze(0).to(device)
+    state = torch.Tensor(data_generator.sample()).permute(2, 0, 1).unsqueeze(0).to(device)
+    env.base_light = -data_generator.light + 1
 
     # encode to latent variables (mu/var)
     latent_mu, latent_variance = policy.encode(state)
@@ -137,8 +132,10 @@ for i_episode in trange(params["NUM_EPISODES"]):
 
         # render out an image for each of the K samples
         # IMPORTANT THIS CURRENTLY ASSUMES BATCH SIZE = 1
-        next_state = env.render(vertex_params, fixed_cam)
-        next_state = make_greyscale(npa(next_state, dtype=np.float32))
+        next_state = env.render(
+            vertex_params, fixed_cam, cam_pos=data_generator.cam + .7)
+        next_state = npa(next_state, dtype=np.float32) / 255
+        # next_state = make_greyscale(npa(next_state, dtype=np.float32))
 
         # calculate reward for each one of the K samples
         reward_raw = -F.binary_cross_entropy(
@@ -165,24 +162,6 @@ for i_episode in trange(params["NUM_EPISODES"]):
     if i_episode >= params["KLD_DELAY"]:
         policy_loss_sum += params["KLD_WEIGHT"] * KLD
 
-    if i_episode in supervised_sample_idxs:
-        tqdm.write("doing a supervised loopdy loop")
-
-        state_a = state_a.unsqueeze(0).to(device)
-        latent_mu_a, _ = policy.encode(state_a)
-        policy_loss_sum += params["SUPERVISED_WEIGHT"] * contrast_loss(
-            latent_mu, latent_mu_a, 0)
-
-        state_d1 = state_d1.unsqueeze(0).to(device)
-        latent_mu_d1, _ = policy.encode(state_d1)
-        policy_loss_sum += params["SUPERVISED_WEIGHT"] * contrast_loss(
-            latent_mu, latent_mu_d1, 1)
-
-        state_d2 = state_d2.unsqueeze(0).to(device)
-        latent_mu_d2, _ = policy.encode(state_d2)
-        policy_loss_sum += params["SUPERVISED_WEIGHT"] * contrast_loss(
-            latent_mu, latent_mu_d2, 1)
-
     policy_loss_sum += params["VARIANCE_WEIGHT"] * torch.norm(latent_variance)
 
     loss_copy = policy_loss_sum.detach().cpu().numpy().copy()
@@ -191,7 +170,9 @@ for i_episode in trange(params["NUM_EPISODES"]):
     optimizer.step()
 
     if i_episode % params["CHKP_FREQ"] == 0:
-        torch.save(policy.state_dict(), os.path.join(exp_dir, 'reinforce.pkl'))
+        torch.save(
+            policy.state_dict(),
+            os.path.join(exp_dir, 'reinforce-' + str(i_episode) + '.pkl'))
 
         img = np.zeros((params["HEIGHT"], params["WIDTH"] * 3, 3),
                        dtype=np.uint8)
@@ -200,10 +181,10 @@ for i_episode in trange(params["NUM_EPISODES"]):
             next_state * 255, 0)
         diff = (np.sum(t2n(state) - next_state, axis=2) + 3) / 6
         diff = np.dstack((diff, diff, diff))
-        img[:, params["WIDTH"] * 2:, :] = np.around(diff * 255, 0)
+        img[:, params["WIDTH"] * 2:, :] = np.around((diff) * 255, 0)
+
         if LOGGING:
-            wandb.log(
-                {"img": wandb.Image(img, caption="{:04d}".format(i_episode))})
+            wandb.log({"img": wandb.Image(img, caption="{:04d}".format(i_episode))})
 
     if LOGGING:
         wandb.log({

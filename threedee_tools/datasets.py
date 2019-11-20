@@ -1,9 +1,12 @@
 import os
 
+import h5py
 import torch
+
+from threedee_tools.data import DATA_PATH
 from threedee_tools.utils_3d import make_greyscale_torch, t2n
 from threediqtt.dataset import ValDataset, TestDataset, TrainLabeledDataset
-
+import matplotlib.pyplot as plt
 from threedee_tools.renderer import Renderer
 import numpy as np
 
@@ -116,7 +119,8 @@ class IQTTLoader(object):
 
     def __init__(self, greyscale=False):
         # self.ds = TestDataset(os.path.expanduser("~/Downloads/3diqtt-v2-test.h5"))
-        self.ds = TrainLabeledDataset("/Volumes/dell/3diqtt-v2-train.h5")
+        # self.ds = TrainLabeledDataset("/Volumes/dell/3diqtt-v2-train.h5")
+        self.ds = ValDataset(os.path.expanduser("~/Downloads/3diqtt-v2-val.h5"))
         self.gs = greyscale
 
     def sample(self, as_np=False):
@@ -157,6 +161,21 @@ class IQTTLoader(object):
             return img_q, img_a, img_d1, img_d2
 
 
+class CubeLoader(object):
+
+    def __init__(self):
+        self.meta = h5py.File(os.path.join(DATA_PATH, "cube-meta.hdf5"), "r")
+        self.max = len(self.meta["cams"])
+
+    def sample(self):
+        idx = np.random.randint(0,self.max)
+        self.cam = self.meta["cams"][idx]
+        self.light = self.meta["lights"][idx]
+        img = plt.imread(os.path.join(DATA_PATH, "cube", "{:06d}.png".format(idx)))
+
+        return img
+
+
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
@@ -167,20 +186,21 @@ if __name__ == '__main__':
     # gen = RotatingConstantShapeGenerator(128, 128, .7)
     # gen = RotatingRandomShapeGenerator(128, 128)
     # gen = RotatingSingle3DIQTTGenerator(128, 128)
-    gen = IQTTLoader(greyscale=True)
+    # gen = IQTTLoader(greyscale=True)
+    gen = CubeLoader()
     while True:
-        # sample = gen.sample(as_np=True)
-        # print (np.min(sample), np.max(sample))
-        # plt.imshow(sample)
-        # plt.show()
-
-        sample_q, sample_a = gen.sample_qa(as_np=True)
-        plt.subplot(2, 1, 1)
-        plt.imshow(sample_q)
-        plt.subplot(2, 1, 2)
-        plt.imshow(sample_a)
-        plt.tight_layout()
+        sample = gen.sample()
+        print (np.min(sample), np.max(sample))
+        plt.imshow(sample)
         plt.show()
+
+        # sample_q, sample_a = gen.sample_qa(as_np=True)
+        # plt.subplot(2, 1, 1)
+        # plt.imshow(sample_q)
+        # plt.subplot(2, 1, 2)
+        # plt.imshow(sample_a)
+        # plt.tight_layout()
+        # plt.show()
 
     #### ROTATING REZENDE
 

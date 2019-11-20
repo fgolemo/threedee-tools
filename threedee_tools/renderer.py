@@ -9,10 +9,17 @@ from threedee_tools.utils_3d import sphere_vertices, CUBE_FACE, get_unique_verti
 
 class Renderer(object):
 
-    def __init__(self, width, height, shape="sphere", scaled=True, sphere_subdiv=5):
+    def __init__(self,
+                 width,
+                 height,
+                 shape="sphere",
+                 scaled=True,
+                 sphere_subdiv=5):
         # this will be the main thing that the neural network changes
         self.vertex_values = np.ones(160, dtype=np.float32)  # in range [0,1]
-        self.rotation_values = np.zeros(3, dtype=np.float32)  # in range [0,1] corresponding to 0 deg to 360 deg
+        self.rotation_values = np.zeros(
+            3, dtype=np.float32
+        )  # in range [0,1] corresponding to 0 deg to 360 deg
 
         self.shape = shape
         self.scaled = scaled
@@ -26,10 +33,12 @@ class Renderer(object):
         self.base_light = np.array((10, 10, 10))
 
         if shape == "sphere":
-            self.verts_base, self.faces_base = sphere_vertices(CUBE_FACE, sphere_subdiv)
+            self.verts_base, self.faces_base = sphere_vertices(
+                CUBE_FACE, sphere_subdiv)
             self.colors = FACE_COLORS_SPHERE
         if shape == "iqtt":
-            self.verts_base, self.faces_base = sphere_vertices(CUBE_FACE, sphere_subdiv)
+            self.verts_base, self.faces_base = sphere_vertices(
+                CUBE_FACE, sphere_subdiv)
             self.colors = FACE_COLORS_WHITE
             frag_shader = FARGMENT_SHADER_MULTI_LIGHT
             self.misc = {
@@ -40,12 +49,23 @@ class Renderer(object):
         elif shape == "cube":
             self.verts_base, self.faces_base = cube_vertices()
             self.colors = FACE_COLORS_CUBE
+        elif shape == "ijcv":
+            self.verts_base, self.faces_base = sphere_vertices(
+                CUBE_FACE, sphere_subdiv)
+            self.colors = FACE_COLORS_WHITE
+            frag_shader = FARGMENT_SHADER_MULTI_LIGHT
+            self.misc = {
+                "RedLightPos": np.array((.6, .8, -.2)) * 2,
+                "GreenLightPos": np.array((.8, .6, -.8)) * 2
+            }
+
+            self.base_light = np.array((3, 3, 3))
         else:
-            assert NotImplementedError("Shape not implemented: '{}'".format(shape))
+            assert NotImplementedError(
+                "Shape not implemented: '{}'".format(shape))
 
         self.prog = self.ctx.program(
-            vertex_shader=VERTEX_SHADER_NORMAL,
-            fragment_shader=frag_shader)
+            vertex_shader=VERTEX_SHADER_NORMAL, fragment_shader=frag_shader)
 
         self.unique_verts = get_unique_vertices(self.verts_base)
         self.iiis = scale_vertices_dry(self.faces_base, self.unique_verts)
@@ -54,14 +74,16 @@ class Renderer(object):
         self.fbo = self.ctx.simple_framebuffer((width, height))
         self.fbo.use()
 
-        self.proj = Matrix44.perspective_projection(45.0, width / height, 0.1, 1000.0)
+        self.proj = Matrix44.perspective_projection(45.0, width / height, 0.1,
+                                                    1000.0)
 
     def sanitize(self, vertex_values, rotation_values):
         return np.clip(vertex_values, 0, 1), \
                rotation_values * 2 * np.pi
 
-    def render(self, vertex_values, rotation_values):
-        vertex_values, rotation_values = self.sanitize(vertex_values, rotation_values)
+    def render(self, vertex_values, rotation_values, cam_pos=None):
+        vertex_values, rotation_values = self.sanitize(vertex_values,
+                                                       rotation_values)
 
         faces = [f.copy() for f in self.faces_base]
 
@@ -71,15 +93,27 @@ class Renderer(object):
         vertex_buffers = []
         for face in faces:
             face.calculate_normals()
-            verts = np.dstack([face.x(), face.y(), face.z(), face.nx(), face.ny(), face.nz()])
+            verts = np.dstack(
+                [face.x(),
+                 face.y(),
+                 face.z(),
+                 face.nx(),
+                 face.ny(),
+                 face.nz()])
             vbo = self.ctx.buffer(verts.astype('f4').tobytes())
-            vao = self.ctx.simple_vertex_array(self.prog, vbo, 'in_vert', 'in_norm')
+            vao = self.ctx.simple_vertex_array(self.prog, vbo, 'in_vert',
+                                               'in_norm')
             vertex_buffers.append(vao)
 
         self.fbo.clear(0.0, 0.0, 0.0, 0.0)
 
+        if cam_pos is None:
+            eye = (2, 2, 1)
+        else:
+            eye = cam_pos
+
         lookat = Matrix44.look_at(
-            (2, 2, 1),  # eye / camera position
+            eye,  # eye / camera position
             (0.0, 0.0, 0.0),  # lookat
             (0.0, 0.0, 1.0),  # camera up vector
         )
@@ -87,13 +121,17 @@ class Renderer(object):
         rotate = np.array(Matrix44.from_eulers(rotation_values))
 
         for key, val in self.misc.items():
-            self.prog[key].value = tuple(np.matmul(rotate[:3, :3], val).reshape(1, -1)[0])
+            self.prog[key].value = tuple(
+                np.matmul(rotate[:3, :3], val).reshape(1, -1)[0])
 
-        self.prog['Lights'].value = tuple(np.matmul(rotate[:3, :3], self.base_light).reshape(1, -1)[0])
-        self.prog['Mvp'].write((self.proj * lookat * rotate).astype('f4').tobytes())
+        self.prog['Lights'].value = tuple(
+            np.matmul(rotate[:3, :3], self.base_light).reshape(1, -1)[0])
+        self.prog['Mvp'].write(
+            (self.proj * lookat * rotate).astype('f4').tobytes())
 
         for vb, color in zip(vertex_buffers, self.colors):
             self.prog['Color'].value = color
             vb.render(moderngl.TRIANGLES)
 
-        return Image.frombytes('RGB', self.fbo.size, self.fbo.read(), 'raw', 'RGB', 0, -1)
+        return Image.frombytes('RGB', self.fbo.size, self.fbo.read(), 'raw',
+                               'RGB', 0, -1)

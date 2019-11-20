@@ -88,3 +88,50 @@ FARGMENT_SHADER_MULTI_LIGHT = '''
             f_color = vec4(combinedLight, 1.0);
         }
     '''
+
+FARGMENT_SHADER_IJCV = '''
+        #version 330
+
+        uniform vec3 RedLightPos;
+        uniform vec3 GreenLightPos;
+        uniform vec3 Lights;
+        uniform vec3 Color;
+
+        in vec3 v_vert;
+        in vec3 v_norm;
+
+        out vec4 f_color;
+
+        void main() {
+            float lum = clamp(
+                dot(
+                    normalize(-Lights), 
+                    normalize(v_norm)
+                ),
+                0.0, 
+                1.0) * 0.5 + 0.2;
+            vec3 combinedLight = Color * lum;
+            
+            // RED
+            lum = clamp(
+                dot(
+                    normalize(RedLightPos - v_vert), 
+                    normalize(v_norm)
+                ),
+                0.0, 
+                1.0) * .5;
+            combinedLight += vec3(.8,.1,.1) * lum;
+            
+            // GREEN
+            lum = clamp(
+                dot(
+                    normalize(GreenLightPos - v_vert), 
+                    normalize(v_norm)
+                ),
+                0.0, 
+                1.0) * .5;
+            combinedLight += vec3(.2,.8,.2) * lum;
+            
+            f_color = vec4(combinedLight, 1.0);
+        }
+    '''

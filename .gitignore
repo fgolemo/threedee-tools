@@ -112,3 +112,8 @@ scripts/ckpt_*
 scripts/3DR-*
 
 scripts/experiments/*
+scripts/out/*
+scripts/wandb/*
+*.tar
+*.hdf5
+
